@@ -236,7 +236,9 @@ The second increment introduces a minimal `QuizValidator` happy path for already
 
 The third increment adds structured error diagnostics for invalid top-level input, invalid item shapes, and missing question/answer fields.
 
-The fourth increment normalizes accepted string fields by trimming surrounding whitespace before creating `QuizItem` objects. Warnings and multiple-choice validation remain planned work for later increments in this milestone.
+The fourth increment normalizes accepted string fields by trimming surrounding whitespace before creating `QuizItem` objects.
+
+The final validation increment adds warnings for optional text fields that are present but not strings. Multiple-choice validation remains planned work for a later milestone increment.
 
 ## Related Documents
 

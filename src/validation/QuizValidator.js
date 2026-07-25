@@ -54,6 +54,24 @@ export class QuizValidator {
                 return;
             }
 
+            if (this.hasNonStringValue(rawItem, "category")) {
+                diagnostics.push(this.warning({
+                    code: "item.category.ignored",
+                    message: "Quiz item category must be a string when present.",
+                    itemIndex,
+                    field: "category"
+                }));
+            }
+
+            if (this.hasNonStringValue(rawItem, "explanation")) {
+                diagnostics.push(this.warning({
+                    code: "item.explanation.ignored",
+                    message: "Quiz item explanation must be a string when present.",
+                    itemIndex,
+                    field: "explanation"
+                }));
+            }
+
             items.push(new QuizItem({
                 type: "oneAnswer",
                 question,
@@ -70,9 +88,23 @@ export class QuizValidator {
         return typeof value === "string" ? value.trim() : "";
     }
 
+    hasNonStringValue(item, field) {
+        return item[field] !== undefined && typeof item[field] !== "string";
+    }
+
     error({ code, message, itemIndex = null, field = null }) {
         return new Diagnostic({
             severity: DiagnosticSeverity.ERROR,
+            code,
+            message,
+            itemIndex,
+            field
+        });
+    }
+
+    warning({ code, message, itemIndex = null, field = null }) {
+        return new Diagnostic({
+            severity: DiagnosticSeverity.WARNING,
             code,
             message,
             itemIndex,

@@ -204,3 +204,54 @@ test("QuizValidator treats whitespace-only required fields as missing", () => {
         ]
     );
 });
+
+test("QuizValidator warns when optional text fields are present but not strings", () => {
+    const result = new QuizValidator().validate([
+        {
+            question: "Capital of France?",
+            answer: "Paris",
+            category: 42,
+            explanation: { text: "Paris is the capital of France." }
+        }
+    ]);
+
+    assert.equal(result.isValid, true);
+    assert.equal(result.items.length, 1);
+    assert.equal(result.items[0].category, "");
+    assert.equal(result.items[0].explanation, "");
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(
+        result.warnings.map((diagnostic) => ({
+            severity: diagnostic.severity,
+            code: diagnostic.code,
+            itemIndex: diagnostic.itemIndex,
+            field: diagnostic.field
+        })),
+        [
+            {
+                severity: DiagnosticSeverity.WARNING,
+                code: "item.category.ignored",
+                itemIndex: 0,
+                field: "category"
+            },
+            {
+                severity: DiagnosticSeverity.WARNING,
+                code: "item.explanation.ignored",
+                itemIndex: 0,
+                field: "explanation"
+            }
+        ]
+    );
+});
+
+test("QuizValidator does not warn when optional text fields are omitted", () => {
+    const result = new QuizValidator().validate([
+        {
+            question: "Capital of France?",
+            answer: "Paris"
+        }
+    ]);
+
+    assert.equal(result.isValid, true);
+    assert.deepEqual(result.warnings, []);
+});
