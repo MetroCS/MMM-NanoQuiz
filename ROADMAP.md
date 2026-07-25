@@ -44,7 +44,7 @@ Connect the framework to MagicMirror lifecycle, configuration, and DOM rendering
 
 **Result:** MMM-NanoQuiz operates as a complete MagicMirror module whose core behavior remains framework-independent.
 
-**Current integration:** The MagicMirror module delegates quiz validation to the framework validation layer while retaining responsibility for loading, lifecycle, timers, logging, and DOM rendering.
+**Current integration:** The MagicMirror module delegates configured quiz loading and validation to the framework adapter bridge. The bridge selects `RemoteJsonSource` when `dataUrl` is configured and `LocalJsonSource` otherwise, warning when both `dataUrl` and `dataFile` are present. The MagicMirror module retains responsibility for host URL resolution, local browser requests, helper-mediated remote requests, lifecycle, timers, logging, and DOM rendering.
 
 ## 7. Authoring and Preview Support
 

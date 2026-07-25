@@ -110,6 +110,8 @@ The second source abstraction increment introduces `LocalJsonSource`. It reads J
 
 The third source abstraction increment introduces `RemoteJsonSource`. It requests JSON text from a supplied requester function, parses it, and returns raw definitions. The requester owns environment-specific network behavior, keeping browser or Node network APIs outside the core source contract and making remote source behavior testable without live network access.
 
+The MagicMirror adapter boundary uses the source abstraction for configured quiz loading. When `dataUrl` is present, the adapter bridge creates a `RemoteJsonSource`; otherwise it resolves `dataFile` through the MagicMirror module and creates a `LocalJsonSource`. If both `dataUrl` and `dataFile` are configured, `dataUrl` takes precedence and the adapter emits a warning. Both sources receive a MagicMirror-provided text requester, keeping browser `fetch`, helper-mediated remote requests, and MagicMirror path resolution outside the reusable source implementations.
+
 ### Quiz Engine
 
 The quiz engine manages the progression of a quiz presentation.
@@ -160,7 +162,7 @@ The MagicMirror adapter is responsible for:
 
 The adapter must not own quiz validation, sequencing rules, or presentation strategy behavior.
 
-The adapter delegates raw quiz validation to the framework validation layer and translates diagnostics into host logging. It still owns source loading, lifecycle behavior, timers, and DOM rendering. Because MagicMirror loads the module entrypoint through its classic browser runtime, a small `.mjs` bridge imports the source adapter and exposes the validation entrypoint to the MagicMirror module.
+The adapter delegates configured quiz loading and raw quiz validation through the framework adapter bridge, then translates diagnostics into host logging. It still owns MagicMirror path resolution, text requests, lifecycle behavior, timers, and DOM rendering. Local module files are requested by the browser. Remote URLs are requested through `node_helper.js` so browser CORS policy does not prevent MagicMirror from loading quiz content from servers that do not explicitly allow `localhost`. Because MagicMirror loads the module entrypoint through its classic browser runtime, a small `.mjs` bridge imports adapter-facing source modules and exposes narrow entrypoints to the MagicMirror module.
 
 Additional adapters may support standalone browser previews, authoring tools, or other display environments.
 
