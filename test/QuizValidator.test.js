@@ -155,3 +155,52 @@ test("QuizValidator reports missing question and answer fields", () => {
         ]
     );
 });
+
+test("QuizValidator trims accepted string fields", () => {
+    const result = new QuizValidator().validate([
+        {
+            question: "  Capital of France?  ",
+            answer: "  Paris  ",
+            category: "  Geography  ",
+            explanation: "  Paris is the capital and largest city of France.  "
+        }
+    ]);
+
+    assert.equal(result.isValid, true);
+    assert.equal(result.items.length, 1);
+    assert.equal(result.items[0].question, "Capital of France?");
+    assert.equal(result.items[0].answer, "Paris");
+    assert.equal(result.items[0].category, "Geography");
+    assert.equal(result.items[0].explanation, "Paris is the capital and largest city of France.");
+});
+
+test("QuizValidator treats whitespace-only required fields as missing", () => {
+    const result = new QuizValidator().validate([
+        {
+            question: "   ",
+            answer: "\t"
+        }
+    ]);
+
+    assert.equal(result.isValid, false);
+    assert.equal(result.items.length, 0);
+    assert.deepEqual(
+        result.errors.map((diagnostic) => ({
+            code: diagnostic.code,
+            itemIndex: diagnostic.itemIndex,
+            field: diagnostic.field
+        })),
+        [
+            {
+                code: "item.question.required",
+                itemIndex: 0,
+                field: "question"
+            },
+            {
+                code: "item.answer.required",
+                itemIndex: 0,
+                field: "answer"
+            }
+        ]
+    );
+});

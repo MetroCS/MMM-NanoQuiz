@@ -27,8 +27,10 @@ export class QuizValidator {
                 return;
             }
 
-            const hasValidQuestion = this.isNonEmptyString(rawItem.question);
-            const hasValidAnswer = this.isNonEmptyString(rawItem.answer);
+            const question = this.normalizeString(rawItem.question);
+            const answer = this.normalizeString(rawItem.answer);
+            const hasValidQuestion = question.length > 0;
+            const hasValidAnswer = answer.length > 0;
 
             if (!hasValidQuestion) {
                 diagnostics.push(this.error({
@@ -54,18 +56,18 @@ export class QuizValidator {
 
             items.push(new QuizItem({
                 type: "oneAnswer",
-                question: rawItem.question,
-                answer: rawItem.answer,
-                category: rawItem.category,
-                explanation: rawItem.explanation
+                question,
+                answer,
+                category: this.normalizeString(rawItem.category),
+                explanation: this.normalizeString(rawItem.explanation)
             }));
         });
 
         return new ValidationResult({ items, diagnostics });
     }
 
-    isNonEmptyString(value) {
-        return typeof value === "string" && value.length > 0;
+    normalizeString(value) {
+        return typeof value === "string" ? value.trim() : "";
     }
 
     error({ code, message, itemIndex = null, field = null }) {
