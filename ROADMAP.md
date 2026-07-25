@@ -16,6 +16,8 @@ Define immutable quiz model objects and a validation pipeline that converts raw 
 
 **Result:** Quiz content can be validated independently of MagicMirror, rendering, files, or networks, with errors and warnings available as inspectable values.
 
+**Current increment:** Immutable quiz and validation value objects are in place with behavior-oriented tests. Validation rules and normalization remain future work within this milestone.
+
 ## 3. Quiz Source Abstraction
 
 Separate quiz acquisition from validation through a common source contract, beginning with in-memory and local JSON sources.

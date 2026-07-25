@@ -7,6 +7,11 @@ export default [
             sourceType: "module",
             globals: {
                 document: "readonly",
+                fetch: "readonly",
+                setInterval: "readonly",
+                clearInterval: "readonly",
+                setTimeout: "readonly",
+                clearTimeout: "readonly",
                 Log: "readonly",
                 Module: "readonly"
             }

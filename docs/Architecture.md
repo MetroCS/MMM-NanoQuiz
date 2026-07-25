@@ -226,6 +226,14 @@ The architecture describes the intended framework as it is being developed incre
 
 The current development focus is the quiz model and validation milestone described in [`ROADMAP.md`](../ROADMAP.md).
 
+The first increment of this milestone establishes immutable value objects and behavior-oriented tests for:
+
+- `QuizItem`
+- `Diagnostic`
+- `ValidationResult`
+
+Validation rules and the `QuizValidator` pipeline remain planned work for later increments in this milestone.
+
 ## Related Documents
 
 - [`VISION.md`](../VISION.md): project purpose and guiding principles
