@@ -42,6 +42,8 @@ Connect the framework to MagicMirror lifecycle, configuration, and DOM rendering
 
 **Result:** MMM-NanoQuiz operates as a complete MagicMirror module whose core behavior remains framework-independent.
 
+**Current integration:** The MagicMirror module delegates quiz validation to the framework validation layer while retaining responsibility for loading, lifecycle, timers, logging, and DOM rendering.
+
 ## 7. Authoring and Preview Support
 
 Provide validation feedback, examples, and a standalone preview path that help authors create and evaluate quiz collections before deployment.
