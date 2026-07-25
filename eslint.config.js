@@ -1,6 +1,6 @@
 export default [
     {
-        files: ["**/*.js"],
+        files: ["**/*.{js,mjs}"],
         ignores: ["node_modules/**"],
         languageOptions: {
             ecmaVersion: "latest",
@@ -13,7 +13,8 @@ export default [
                 setTimeout: "readonly",
                 clearTimeout: "readonly",
                 Log: "readonly",
-                Module: "readonly"
+                Module: "readonly",
+                NanoQuizAdapter: "readonly"
             }
         },
         rules: {

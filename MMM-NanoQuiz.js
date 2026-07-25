@@ -30,6 +30,10 @@ Module.register("MMM-NanoQuiz", {
         return ["MMM-NanoQuiz.css"];
     },
 
+    getScripts() {
+        return [this.file("src/adapter/MagicMirrorValidationAdapter.mjs")];
+    },
+
     start() {
         Log.info(`Starting module: ${this.name}`);
         this.items = [];
@@ -83,9 +87,7 @@ Module.register("MMM-NanoQuiz", {
             }
 
             const rawItems = await response.json();
-            const { validItems, errors } = this.validateItems(rawItems);
-
-            errors.forEach((message) => Log.warn(`${this.name}: ${message}`));
+            const validItems = this.validateLoadedItems(rawItems, source);
 
             if (validItems.length === 0) {
                 throw new Error("No valid NanoQuiz items were found.");
@@ -106,6 +108,22 @@ Module.register("MMM-NanoQuiz", {
         }
     },
 
+    validateLoadedItems(rawItems, source) {
+        if (
+            typeof NanoQuizAdapter === "undefined" ||
+            typeof NanoQuizAdapter.validateNanoQuizItems !== "function"
+        ) {
+            throw new Error("NanoQuiz validation adapter was not loaded.");
+        }
+
+        return NanoQuizAdapter.validateNanoQuizItems(rawItems, {
+            source,
+            logger: {
+                warn: (message) => Log.warn(`${this.name}: ${message}`)
+            }
+        });
+    },
+
     startReloadTimer() {
         if (this.reloadTimer) {
             clearInterval(this.reloadTimer);
@@ -113,77 +131,6 @@ Module.register("MMM-NanoQuiz", {
         if (this.config.reloadInterval > 0) {
             this.reloadTimer = setInterval(() => this.loadItems(), this.config.reloadInterval);
         }
-    },
-
-    validateItems(rawItems) {
-        const validItems = [];
-        const errors = [];
-
-        if (!Array.isArray(rawItems)) {
-            return {
-                validItems,
-                errors: ["The data source must contain a top-level JSON array."]
-            };
-        }
-
-        rawItems.forEach((item, index) => {
-            const prefix = `Item ${index + 1}`;
-            if (!item || typeof item !== "object" || Array.isArray(item)) {
-                errors.push(`${prefix} is not an object.`);
-                return;
-            }
-
-            const question = typeof item.question === "string" ? item.question.trim() : "";
-            const answer = typeof item.answer === "string" ? item.answer.trim() : "";
-
-            if (!question) {
-                errors.push(`${prefix} has no non-empty question.`);
-                return;
-            }
-            if (!answer) {
-                errors.push(`${prefix} has no non-empty answer.`);
-                return;
-            }
-
-            const normalized = {
-                question,
-                answer,
-                category: typeof item.category === "string" ? item.category.trim() : "",
-                explanation: typeof item.explanation === "string" ? item.explanation.trim() : ""
-            };
-
-            if (item.choices === undefined) {
-                normalized.type = "oneAnswer";
-                validItems.push(normalized);
-                return;
-            }
-
-            if (!Array.isArray(item.choices) || item.choices.length !== 4) {
-                errors.push(`${prefix} must contain exactly four choices.`);
-                return;
-            }
-
-            const choices = item.choices.map((choice) =>
-                typeof choice === "string" ? choice.trim() : ""
-            );
-
-            if (choices.some((choice) => !choice)) {
-                errors.push(`${prefix} contains an empty or non-string choice.`);
-                return;
-            }
-
-            const answerMatches = choices.filter((choice) => choice === answer).length;
-            if (answerMatches !== 1) {
-                errors.push(`${prefix} answer must match exactly one choice.`);
-                return;
-            }
-
-            normalized.type = "multipleChoice";
-            normalized.choices = choices;
-            validItems.push(normalized);
-        });
-
-        return { validItems, errors };
     },
 
     advanceItem() {

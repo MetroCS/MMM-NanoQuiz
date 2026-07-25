@@ -145,6 +145,8 @@ The MagicMirror adapter is responsible for:
 
 The adapter must not own quiz validation, sequencing rules, or presentation strategy behavior.
 
+The adapter delegates raw quiz validation to the framework validation layer and translates diagnostics into host logging. It still owns source loading, lifecycle behavior, timers, and DOM rendering. Because MagicMirror loads the module entrypoint through its classic browser runtime, a small `.mjs` bridge imports the source adapter and exposes the validation entrypoint to the MagicMirror module.
+
 Additional adapters may support standalone browser previews, authoring tools, or other display environments.
 
 ## Data Flow
