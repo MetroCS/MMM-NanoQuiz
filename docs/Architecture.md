@@ -106,6 +106,10 @@ The first source abstraction increment establishes an asynchronous source contra
 
 `MemorySource` defensively copies raw definitions when constructed and when loaded. This protects caller-owned data and prevents consumers from mutating the source's stored raw definitions between loads. It still preserves invalid or unnormalized content exactly as source data so that validation behavior remains observable in the validation layer.
 
+The second source abstraction increment introduces `LocalJsonSource`. It reads JSON text from a supplied reader function, parses it, and returns raw definitions. The reader function owns environment-specific file access, keeping filesystem APIs outside the core source contract and making source behavior testable without touching the filesystem.
+
+The third source abstraction increment introduces `RemoteJsonSource`. It requests JSON text from a supplied requester function, parses it, and returns raw definitions. The requester owns environment-specific network behavior, keeping browser or Node network APIs outside the core source contract and making remote source behavior testable without live network access.
+
 ### Quiz Engine
 
 The quiz engine manages the progression of a quiz presentation.

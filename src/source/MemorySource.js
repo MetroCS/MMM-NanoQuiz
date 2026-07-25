@@ -1,4 +1,5 @@
 import { QuizSource } from "./QuizSource.js";
+import { cloneRawValue } from "./cloneRawValue.js";
 
 export class MemorySource extends QuizSource {
     constructor(rawItems, { id = "memory" } = {}) {
@@ -13,18 +14,4 @@ export class MemorySource extends QuizSource {
     async loadRawItems() {
         return cloneRawValue(this.rawItems);
     }
-}
-
-function cloneRawValue(value) {
-    if (Array.isArray(value)) {
-        return value.map((item) => cloneRawValue(item));
-    }
-
-    if (value && typeof value === "object") {
-        return Object.fromEntries(
-            Object.entries(value).map(([key, entryValue]) => [key, cloneRawValue(entryValue)])
-        );
-    }
-
-    return value;
 }
