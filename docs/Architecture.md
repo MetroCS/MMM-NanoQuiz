@@ -232,7 +232,7 @@ The first increment of this milestone establishes immutable value objects and be
 - `Diagnostic`
 - `ValidationResult`
 
-Validation rules and the `QuizValidator` pipeline remain planned work for later increments in this milestone.
+The second increment introduces a minimal `QuizValidator` happy path for already well-formed question/answer definitions. Error diagnostics, warnings, normalization, and multiple-choice validation remain planned work for later increments in this milestone.
 
 ## Related Documents
 
