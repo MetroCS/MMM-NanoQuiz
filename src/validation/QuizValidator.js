@@ -72,16 +72,78 @@ export class QuizValidator {
                 }));
             }
 
-            items.push(new QuizItem({
-                type: "oneAnswer",
+            const baseItem = {
                 question,
                 answer,
                 category: this.normalizeString(rawItem.category),
                 explanation: this.normalizeString(rawItem.explanation)
+            };
+
+            if (rawItem.choices !== undefined) {
+                const choices = this.validateChoices(rawItem.choices, {
+                    diagnostics,
+                    itemIndex
+                });
+
+                if (!choices) {
+                    return;
+                }
+
+                const answerMatches = choices.filter((choice) => choice === answer).length;
+                if (answerMatches !== 1) {
+                    diagnostics.push(this.error({
+                        code: "item.answer.choiceMismatch",
+                        message: "Multiple-choice answer must match exactly one choice.",
+                        itemIndex,
+                        field: "answer"
+                    }));
+
+                    return;
+                }
+
+                items.push(new QuizItem({
+                    ...baseItem,
+                    type: "multipleChoice",
+                    choices
+                }));
+
+                return;
+            }
+
+            items.push(new QuizItem({
+                ...baseItem,
+                type: "oneAnswer"
             }));
         });
 
         return new ValidationResult({ items, diagnostics });
+    }
+
+    validateChoices(rawChoices, { diagnostics, itemIndex }) {
+        if (!Array.isArray(rawChoices) || rawChoices.length !== 4) {
+            diagnostics.push(this.error({
+                code: "item.choices.count",
+                message: "Multiple-choice item must include exactly four choices.",
+                itemIndex,
+                field: "choices"
+            }));
+
+            return null;
+        }
+
+        const choices = rawChoices.map((choice) => this.normalizeString(choice));
+        if (choices.some((choice) => choice.length === 0)) {
+            diagnostics.push(this.error({
+                code: "item.choices.required",
+                message: "Multiple-choice choices must be non-empty strings.",
+                itemIndex,
+                field: "choices"
+            }));
+
+            return null;
+        }
+
+        return choices;
     }
 
     normalizeString(value) {

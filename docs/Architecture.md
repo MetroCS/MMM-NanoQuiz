@@ -238,7 +238,9 @@ The third increment adds structured error diagnostics for invalid top-level inpu
 
 The fourth increment normalizes accepted string fields by trimming surrounding whitespace before creating `QuizItem` objects.
 
-The final validation increment adds warnings for optional text fields that are present but not strings. Multiple-choice validation remains planned work for a later milestone increment.
+The final question/answer validation increment adds warnings for optional text fields that are present but not strings.
+
+The multiple-choice validation increment treats a raw item with `choices` as multiple-choice content. It must provide exactly four non-empty string choices, and the normalized answer must match exactly one normalized choice.
 
 ## Related Documents
 

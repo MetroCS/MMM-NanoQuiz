@@ -255,3 +255,148 @@ test("QuizValidator does not warn when optional text fields are omitted", () => 
     assert.equal(result.isValid, true);
     assert.deepEqual(result.warnings, []);
 });
+
+test("QuizValidator creates multiple-choice quiz items from well-formed definitions", () => {
+    const result = new QuizValidator().validate([
+        {
+            question: "  Which planet is known as the Red Planet?  ",
+            answer: "  Mars  ",
+            choices: [" Mercury ", " Venus ", " Earth ", " Mars "],
+            category: " Astronomy ",
+            explanation: " Mars appears red because of iron oxide. "
+        }
+    ]);
+
+    assert.equal(result.isValid, true);
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.items.length, 1);
+    assert.ok(result.items[0] instanceof QuizItem);
+    assert.equal(result.items[0].type, "multipleChoice");
+    assert.equal(result.items[0].question, "Which planet is known as the Red Planet?");
+    assert.equal(result.items[0].answer, "Mars");
+    assert.deepEqual(result.items[0].choices, ["Mercury", "Venus", "Earth", "Mars"]);
+    assert.equal(result.items[0].category, "Astronomy");
+    assert.equal(result.items[0].explanation, "Mars appears red because of iron oxide.");
+    assert.ok(Object.isFrozen(result.items[0].choices));
+});
+
+test("QuizValidator reports invalid multiple-choice choice counts", () => {
+    const result = new QuizValidator().validate([
+        {
+            question: "Pick one",
+            answer: "A",
+            choices: ["A", "B", "C"]
+        },
+        {
+            question: "Pick one",
+            answer: "A",
+            choices: "A, B, C, D"
+        }
+    ]);
+
+    assert.equal(result.isValid, false);
+    assert.equal(result.items.length, 0);
+    assert.deepEqual(
+        result.errors.map((diagnostic) => ({
+            code: diagnostic.code,
+            itemIndex: diagnostic.itemIndex,
+            field: diagnostic.field
+        })),
+        [
+            {
+                code: "item.choices.count",
+                itemIndex: 0,
+                field: "choices"
+            },
+            {
+                code: "item.choices.count",
+                itemIndex: 1,
+                field: "choices"
+            }
+        ]
+    );
+});
+
+test("QuizValidator reports empty or non-string multiple-choice choices", () => {
+    const result = new QuizValidator().validate([
+        {
+            question: "Pick one",
+            answer: "A",
+            choices: ["A", "", "C", "D"]
+        },
+        {
+            question: "Pick one",
+            answer: "A",
+            choices: ["A", "   ", "C", "D"]
+        },
+        {
+            question: "Pick one",
+            answer: "A",
+            choices: ["A", 2, "C", "D"]
+        }
+    ]);
+
+    assert.equal(result.isValid, false);
+    assert.equal(result.items.length, 0);
+    assert.deepEqual(
+        result.errors.map((diagnostic) => ({
+            code: diagnostic.code,
+            itemIndex: diagnostic.itemIndex,
+            field: diagnostic.field
+        })),
+        [
+            {
+                code: "item.choices.required",
+                itemIndex: 0,
+                field: "choices"
+            },
+            {
+                code: "item.choices.required",
+                itemIndex: 1,
+                field: "choices"
+            },
+            {
+                code: "item.choices.required",
+                itemIndex: 2,
+                field: "choices"
+            }
+        ]
+    );
+});
+
+test("QuizValidator requires multiple-choice answer to match exactly one choice", () => {
+    const result = new QuizValidator().validate([
+        {
+            question: "Pick one",
+            answer: "D",
+            choices: ["A", "B", "C", "E"]
+        },
+        {
+            question: "Pick one",
+            answer: "A",
+            choices: ["A", "A", "B", "C"]
+        }
+    ]);
+
+    assert.equal(result.isValid, false);
+    assert.equal(result.items.length, 0);
+    assert.deepEqual(
+        result.errors.map((diagnostic) => ({
+            code: diagnostic.code,
+            itemIndex: diagnostic.itemIndex,
+            field: diagnostic.field
+        })),
+        [
+            {
+                code: "item.answer.choiceMismatch",
+                itemIndex: 0,
+                field: "answer"
+            },
+            {
+                code: "item.answer.choiceMismatch",
+                itemIndex: 1,
+                field: "answer"
+            }
+        ]
+    );
+});
