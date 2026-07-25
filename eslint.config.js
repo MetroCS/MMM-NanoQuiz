@@ -13,7 +13,8 @@ export default [
                 setTimeout: "readonly",
                 clearTimeout: "readonly",
                 Log: "readonly",
-                Module: "readonly"
+                Module: "readonly",
+                NanoQuizAdapter: "readonly"
             }
         },
         rules: {

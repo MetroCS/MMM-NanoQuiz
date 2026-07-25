@@ -30,6 +30,10 @@ Module.register("MMM-NanoQuiz", {
         return ["MMM-NanoQuiz.css"];
     },
 
+    getScripts() {
+        return [this.file("src/adapter/MagicMirrorValidationAdapter.mjs")];
+    },
+
     start() {
         Log.info(`Starting module: ${this.name}`);
         this.items = [];
@@ -83,7 +87,7 @@ Module.register("MMM-NanoQuiz", {
             }
 
             const rawItems = await response.json();
-            const validItems = await this.validateLoadedItems(rawItems, source);
+            const validItems = this.validateLoadedItems(rawItems, source);
 
             if (validItems.length === 0) {
                 throw new Error("No valid NanoQuiz items were found.");
@@ -104,10 +108,15 @@ Module.register("MMM-NanoQuiz", {
         }
     },
 
-    async validateLoadedItems(rawItems, source) {
-        const { validateNanoQuizItems } = await import("./src/adapter/validateNanoQuizItems.js");
+    validateLoadedItems(rawItems, source) {
+        if (
+            typeof NanoQuizAdapter === "undefined" ||
+            typeof NanoQuizAdapter.validateNanoQuizItems !== "function"
+        ) {
+            throw new Error("NanoQuiz validation adapter was not loaded.");
+        }
 
-        return validateNanoQuizItems(rawItems, {
+        return NanoQuizAdapter.validateNanoQuizItems(rawItems, {
             source,
             logger: {
                 warn: (message) => Log.warn(`${this.name}: ${message}`)
