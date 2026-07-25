@@ -232,7 +232,9 @@ The first increment of this milestone establishes immutable value objects and be
 - `Diagnostic`
 - `ValidationResult`
 
-The second increment introduces a minimal `QuizValidator` happy path for already well-formed question/answer definitions. Error diagnostics, warnings, normalization, and multiple-choice validation remain planned work for later increments in this milestone.
+The second increment introduces a minimal `QuizValidator` happy path for already well-formed question/answer definitions.
+
+The third increment adds structured error diagnostics for invalid top-level input, invalid item shapes, and missing question/answer fields. Warnings, normalization, and multiple-choice validation remain planned work for later increments in this milestone.
 
 ## Related Documents
 
