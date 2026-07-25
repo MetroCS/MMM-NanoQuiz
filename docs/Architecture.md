@@ -87,6 +87,13 @@ Source contract:
 
 - `QuizSource`
 
+The source contract is intentionally small:
+
+- `id`: identifies the origin for diagnostics, logs, and adapter messages
+- `loadRawItems()`: asynchronously returns raw quiz definitions
+
+Sources return raw data, not `QuizItem` instances. They do not validate, normalize, sequence, randomize, or render quiz content. Validation remains the responsibility of `QuizValidator`, which receives raw definitions from a source and decides what can become domain model objects.
+
 Initial implementations may include:
 
 - `MemorySource`
@@ -94,6 +101,10 @@ Initial implementations may include:
 - `RemoteJsonSource`
 
 A source returns data to the validation pipeline. It does not construct presentation state or render output.
+
+The first source abstraction increment establishes an asynchronous source contract and a `MemorySource` for already-available raw quiz definitions. `MemorySource` is useful for tests, previews, and adapter seams because it exercises the source contract without introducing filesystem or network behavior.
+
+`MemorySource` defensively copies raw definitions when constructed and when loaded. This protects caller-owned data and prevents consumers from mutating the source's stored raw definitions between loads. It still preserves invalid or unnormalized content exactly as source data so that validation behavior remains observable in the validation layer.
 
 ### Quiz Engine
 

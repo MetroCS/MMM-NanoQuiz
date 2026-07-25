@@ -24,6 +24,8 @@ Separate quiz acquisition from validation through a common source contract, begi
 
 **Result:** The framework can obtain quiz definitions from interchangeable sources without changing validation or presentation behavior.
 
+**Current increment:** Establish the source contract with an in-memory source for already-available raw quiz definitions. Filesystem and network sources remain future work within this milestone.
+
 ## 4. Presentation Engine
 
 Implement an event-oriented state machine that manages quiz sequencing, timing, answer revelation, and presentation progression without manipulating the DOM.
