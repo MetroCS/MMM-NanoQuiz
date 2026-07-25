@@ -250,3 +250,4 @@ The multiple-choice validation increment treats a raw item with `choices` as mul
 - [`ROADMAP.md`](../ROADMAP.md): major capability milestones
 - [`ADR-001: Project Identity`](architecture/ADR-001-project-identity.md)
 - [`ADR-002: Increment Development Model`](architecture/ADR-002-increment-development-model.md)
+- [`ADR-003: MagicMirror ESM Bridge`](architecture/ADR-003-magicmirror-esm-bridge.md)
