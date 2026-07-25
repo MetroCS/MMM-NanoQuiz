@@ -400,3 +400,48 @@ test("QuizValidator requires multiple-choice answer to match exactly one choice"
         ]
     );
 });
+
+test("QuizValidator attributes diagnostics to a validation source", () => {
+    const result = new QuizValidator().validate(
+        [
+            {
+                question: "",
+                answer: "Paris"
+            },
+            {
+                question: "Capital of France?",
+                answer: "Paris",
+                category: 42
+            },
+            {
+                question: "Pick one",
+                answer: "A",
+                choices: ["A", "B", "C"]
+            }
+        ],
+        { source: "questions.json" }
+    );
+
+    assert.equal(result.errors.length, 2);
+    assert.equal(result.warnings.length, 1);
+    assert.deepEqual(
+        result.diagnostics.map((diagnostic) => ({
+            code: diagnostic.code,
+            source: diagnostic.source
+        })),
+        [
+            {
+                code: "item.question.required",
+                source: "questions.json"
+            },
+            {
+                code: "item.category.ignored",
+                source: "questions.json"
+            },
+            {
+                code: "item.choices.count",
+                source: "questions.json"
+            }
+        ]
+    );
+});

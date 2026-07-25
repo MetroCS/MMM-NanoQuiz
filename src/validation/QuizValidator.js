@@ -3,14 +3,15 @@ import { Diagnostic, DiagnosticSeverity } from "./Diagnostic.js";
 import { ValidationResult } from "./ValidationResult.js";
 
 export class QuizValidator {
-    validate(rawItems) {
+    validate(rawItems, { source = null } = {}) {
         const items = [];
         const diagnostics = [];
 
         if (!Array.isArray(rawItems)) {
             diagnostics.push(this.error({
                 code: "source.notArray",
-                message: "Raw quiz definitions must be an array."
+                message: "Raw quiz definitions must be an array.",
+                source
             }));
 
             return new ValidationResult({ items, diagnostics });
@@ -21,6 +22,7 @@ export class QuizValidator {
                 diagnostics.push(this.error({
                     code: "item.notObject",
                     message: "Quiz item must be an object.",
+                    source,
                     itemIndex
                 }));
 
@@ -36,6 +38,7 @@ export class QuizValidator {
                 diagnostics.push(this.error({
                     code: "item.question.required",
                     message: "Quiz item must include a non-empty question.",
+                    source,
                     itemIndex,
                     field: "question"
                 }));
@@ -45,6 +48,7 @@ export class QuizValidator {
                 diagnostics.push(this.error({
                     code: "item.answer.required",
                     message: "Quiz item must include a non-empty answer.",
+                    source,
                     itemIndex,
                     field: "answer"
                 }));
@@ -58,6 +62,7 @@ export class QuizValidator {
                 diagnostics.push(this.warning({
                     code: "item.category.ignored",
                     message: "Quiz item category must be a string when present.",
+                    source,
                     itemIndex,
                     field: "category"
                 }));
@@ -67,6 +72,7 @@ export class QuizValidator {
                 diagnostics.push(this.warning({
                     code: "item.explanation.ignored",
                     message: "Quiz item explanation must be a string when present.",
+                    source,
                     itemIndex,
                     field: "explanation"
                 }));
@@ -82,6 +88,7 @@ export class QuizValidator {
             if (rawItem.choices !== undefined) {
                 const choices = this.validateChoices(rawItem.choices, {
                     diagnostics,
+                    source,
                     itemIndex
                 });
 
@@ -94,6 +101,7 @@ export class QuizValidator {
                     diagnostics.push(this.error({
                         code: "item.answer.choiceMismatch",
                         message: "Multiple-choice answer must match exactly one choice.",
+                        source,
                         itemIndex,
                         field: "answer"
                     }));
@@ -119,11 +127,12 @@ export class QuizValidator {
         return new ValidationResult({ items, diagnostics });
     }
 
-    validateChoices(rawChoices, { diagnostics, itemIndex }) {
+    validateChoices(rawChoices, { diagnostics, source, itemIndex }) {
         if (!Array.isArray(rawChoices) || rawChoices.length !== 4) {
             diagnostics.push(this.error({
                 code: "item.choices.count",
                 message: "Multiple-choice item must include exactly four choices.",
+                source,
                 itemIndex,
                 field: "choices"
             }));
@@ -136,6 +145,7 @@ export class QuizValidator {
             diagnostics.push(this.error({
                 code: "item.choices.required",
                 message: "Multiple-choice choices must be non-empty strings.",
+                source,
                 itemIndex,
                 field: "choices"
             }));
@@ -154,21 +164,23 @@ export class QuizValidator {
         return item[field] !== undefined && typeof item[field] !== "string";
     }
 
-    error({ code, message, itemIndex = null, field = null }) {
+    error({ code, message, source = null, itemIndex = null, field = null }) {
         return new Diagnostic({
             severity: DiagnosticSeverity.ERROR,
             code,
             message,
+            source,
             itemIndex,
             field
         });
     }
 
-    warning({ code, message, itemIndex = null, field = null }) {
+    warning({ code, message, source = null, itemIndex = null, field = null }) {
         return new Diagnostic({
             severity: DiagnosticSeverity.WARNING,
             code,
             message,
+            source,
             itemIndex,
             field
         });
