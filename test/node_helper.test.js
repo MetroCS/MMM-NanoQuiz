@@ -151,3 +151,75 @@ test("node helper uses a default timeout when none is supplied", async () => {
         globalThis.fetch = originalFetch;
     }
 });
+
+test("node helper ignores malformed remote request payloads without request ids", async () => {
+    const originalFetch = globalThis.fetch;
+    const sentNotifications = [];
+    let fetchWasCalled = false;
+
+    globalThis.fetch = async () => {
+        fetchWasCalled = true;
+        return {
+            ok: true,
+            async text() {
+                return "[]";
+            }
+        };
+    };
+
+    try {
+        const helper = new Helper();
+        helper.sendSocketNotification = (notification, payload) => {
+            sentNotifications.push({ notification, payload });
+        };
+
+        await helper.socketNotificationReceived("NANOQUIZ_REQUEST_TEXT");
+        await helper.socketNotificationReceived("NANOQUIZ_REQUEST_TEXT", null);
+        await helper.socketNotificationReceived("NANOQUIZ_REQUEST_TEXT", {});
+
+        assert.equal(fetchWasCalled, false);
+        assert.deepEqual(sentNotifications, []);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("node helper responds when remote request payload is missing a source", async () => {
+    const originalFetch = globalThis.fetch;
+    const sentNotifications = [];
+    let fetchWasCalled = false;
+
+    globalThis.fetch = async () => {
+        fetchWasCalled = true;
+        return {
+            ok: true,
+            async text() {
+                return "[]";
+            }
+        };
+    };
+
+    try {
+        const helper = new Helper();
+        helper.sendSocketNotification = (notification, payload) => {
+            sentNotifications.push({ notification, payload });
+        };
+
+        await helper.socketNotificationReceived("NANOQUIZ_REQUEST_TEXT", {
+            requestId: 11
+        });
+
+        assert.equal(fetchWasCalled, false);
+        assert.deepEqual(sentNotifications, [
+            {
+                notification: "NANOQUIZ_TEXT_RESPONSE",
+                payload: {
+                    requestId: 11,
+                    error: "NanoQuiz remote request requires a source."
+                }
+            }
+        ]);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

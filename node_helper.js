@@ -4,11 +4,27 @@ const DEFAULT_REQUEST_TIMEOUT = 30000;
 
 const Helper = NodeHelper.create({
     async socketNotificationReceived(notification, payload) {
-        if (notification !== "NANOQUIZ_REQUEST_TEXT") {
+        if (
+            notification !== "NANOQUIZ_REQUEST_TEXT" ||
+            !payload ||
+            typeof payload !== "object"
+        ) {
             return;
         }
 
         const { requestId, source, timeout } = payload;
+        if (requestId === undefined || requestId === null) {
+            return;
+        }
+
+        if (typeof source !== "string" || source.length === 0) {
+            this.sendSocketNotification("NANOQUIZ_TEXT_RESPONSE", {
+                requestId,
+                error: "NanoQuiz remote request requires a source."
+            });
+            return;
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), getRequestTimeout(timeout));
 

@@ -77,7 +77,13 @@ Module.register("MMM-NanoQuiz", {
     },
 
     socketNotificationReceived(notification, payload) {
-        if (notification !== "NANOQUIZ_TEXT_RESPONSE") {
+        if (
+            notification !== "NANOQUIZ_TEXT_RESPONSE" ||
+            !payload ||
+            typeof payload !== "object" ||
+            payload.requestId === undefined ||
+            payload.requestId === null
+        ) {
             return;
         }
 

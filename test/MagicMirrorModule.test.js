@@ -44,3 +44,27 @@ test("MagicMirror module cleans up pending remote request when socket send fails
 
     assert.equal(moduleInstance.pendingTextRequests.size, 0);
 });
+
+test("MagicMirror module ignores malformed text responses", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const pendingRequest = {
+        resolve() {
+            throw new Error("Unexpected resolve");
+        },
+        reject() {
+            throw new Error("Unexpected reject");
+        }
+    };
+    const moduleInstance = {
+        ...moduleDefinition,
+        pendingTextRequests: new Map([[1, pendingRequest]])
+    };
+
+    assert.doesNotThrow(() => {
+        moduleInstance.socketNotificationReceived("NANOQUIZ_TEXT_RESPONSE");
+        moduleInstance.socketNotificationReceived("NANOQUIZ_TEXT_RESPONSE", null);
+        moduleInstance.socketNotificationReceived("NANOQUIZ_TEXT_RESPONSE", {});
+    });
+
+    assert.equal(moduleInstance.pendingTextRequests.size, 1);
+});
