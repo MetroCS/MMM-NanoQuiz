@@ -132,6 +132,8 @@ The engine is event-oriented and does not manipulate the DOM. Renderers observe 
 
 The first presentation engine increment introduces `QuizEngine` as a renderer-independent owner of quiz item sequencing. It accepts validated quiz items, advances to the next item, supports sequential or randomized question order, can avoid immediate repeats when randomizing, and exposes immutable snapshots containing the current phase, item index, item, and item count.
 
+MagicMirror integration creates a `QuizEngine` after configured quiz items are loaded and uses engine snapshots to select the current item. This proves the adapter can consume engine state without moving the rest of the presentation workflow yet.
+
 This first slice intentionally does not own timers, answer revelation, multiple-choice elimination, or DOM rendering. Those behaviors remain in the MagicMirror adapter until later engine and presentation strategy increments define their framework-level contracts.
 
 ### Presentation Strategies
@@ -249,7 +251,7 @@ The architecture describes the intended framework as it is being developed incre
 
 Completed framework foundations include immutable quiz model values, structured validation, in-memory/local/remote JSON source abstractions, and MagicMirror adapter integration for configured source loading.
 
-The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The first engine increment establishes renderer-independent item sequencing and immutable presentation snapshots. Timed phase progression, answer revelation, multiple-choice elimination, and strategy-specific behavior remain future increments.
+The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The first engine increment establishes renderer-independent item sequencing, immutable presentation snapshots, and thin MagicMirror integration for item selection. Timed phase progression, answer revelation, multiple-choice elimination, and strategy-specific behavior remain future increments.
 
 ## Related Documents
 

@@ -62,6 +62,25 @@ test("QuizEngine advances through items sequentially", () => {
     assert.equal(engine.advanceToNextItem().currentIndex, 0);
 });
 
+test("QuizEngine snapshots can carry multiple-choice items", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const engine = new QuizEngine([multipleChoiceItem], {
+        randomizeQuestions: false
+    });
+
+    assert.deepEqual(engine.advanceToNextItem(), {
+        phase: QuizEnginePhase.QUESTION,
+        currentIndex: 0,
+        currentItem: multipleChoiceItem,
+        itemCount: 1
+    });
+});
+
 test("QuizEngine advances through randomized item indexes", () => {
     const firstItem = item("First?");
     const secondItem = item("Second?");

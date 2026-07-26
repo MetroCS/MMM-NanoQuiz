@@ -32,7 +32,7 @@ Implement an event-oriented state machine that manages quiz sequencing, timing, 
 
 **Result:** Quiz behavior can execute and be tested independently of any renderer.
 
-**Current increment:** Establish the first `QuizEngine` slice with renderer-independent item sequencing, empty/ready/question phases, sequential or randomized advancement, avoid-immediate-repeat behavior, and immutable presentation snapshots.
+**Current increment:** Establish the first `QuizEngine` slice with renderer-independent item sequencing, empty/ready/question phases, sequential or randomized advancement, avoid-immediate-repeat behavior, and immutable presentation snapshots. MagicMirror now uses this engine for item selection while retaining adapter-owned timing, answer revelation, multiple-choice elimination, and DOM rendering.
 
 ## 5. Presentation Strategies
 

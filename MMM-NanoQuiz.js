@@ -38,6 +38,7 @@ Module.register("MMM-NanoQuiz", {
     start() {
         Log.info(`Starting module: ${this.name}`);
         this.items = [];
+        this.engine = null;
         this.currentItem = null;
         this.currentIndex = -1;
         this.phase = "loading";
@@ -115,6 +116,7 @@ Module.register("MMM-NanoQuiz", {
             }
 
             this.items = validItems;
+            this.engine = this.createEngine(validItems);
             this.currentIndex = -1;
             this.advanceItem();
 
@@ -144,6 +146,20 @@ Module.register("MMM-NanoQuiz", {
             logger: {
                 warn: (message) => Log.warn(`${this.name}: ${message}`)
             }
+        });
+    },
+
+    createEngine(items) {
+        if (
+            typeof NanoQuizAdapter === "undefined" ||
+            typeof NanoQuizAdapter.createQuizEngine !== "function"
+        ) {
+            throw new Error("NanoQuiz adapter bridge was not loaded.");
+        }
+
+        return NanoQuizAdapter.createQuizEngine(items, {
+            avoidImmediateRepeats: this.config.avoidImmediateRepeats,
+            randomizeQuestions: this.config.randomizeQuestions
         });
     },
 
@@ -214,22 +230,19 @@ Module.register("MMM-NanoQuiz", {
     },
 
     advanceItem() {
-        if (this.items.length === 0) {
+        if (!this.engine) {
             return;
         }
 
         this.clearTimer();
-        const previousIndex = this.currentIndex;
+        const snapshot = this.engine.advanceToNextItem();
 
-        if (this.config.randomizeQuestions && this.items.length > 1) {
-            do {
-                this.currentIndex = Math.floor(Math.random() * this.items.length);
-            } while (this.config.avoidImmediateRepeats && this.currentIndex === previousIndex);
-        } else {
-            this.currentIndex = (this.currentIndex + 1) % this.items.length;
+        if (!snapshot.currentItem) {
+            return;
         }
 
-        this.currentItem = this.prepareItem(this.items[this.currentIndex]);
+        this.currentIndex = snapshot.currentIndex;
+        this.currentItem = this.prepareItem(snapshot.currentItem);
         this.eliminatedIndexes = new Set();
         this.eliminationOrder = this.buildEliminationOrder(this.currentItem);
         this.phase = "question";
