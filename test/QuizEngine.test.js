@@ -81,6 +81,55 @@ test("QuizEngine snapshots can carry multiple-choice items", () => {
     });
 });
 
+test("QuizEngine reveals one-answer items", () => {
+    const firstItem = item("First?");
+    const engine = new QuizEngine([firstItem], {
+        randomizeQuestions: false
+    });
+
+    engine.advanceToNextItem();
+
+    assert.deepEqual(engine.revealAnswer(), {
+        phase: QuizEnginePhase.ANSWER,
+        currentIndex: 0,
+        currentItem: firstItem,
+        itemCount: 1
+    });
+});
+
+test("QuizEngine does not reveal answers before an item is selected", () => {
+    const firstItem = item("First?");
+    const engine = new QuizEngine([firstItem]);
+
+    assert.deepEqual(engine.revealAnswer(), {
+        phase: QuizEnginePhase.READY,
+        currentIndex: -1,
+        currentItem: null,
+        itemCount: 1
+    });
+});
+
+test("QuizEngine leaves multiple-choice reveal behavior to presentation strategy", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const engine = new QuizEngine([multipleChoiceItem], {
+        randomizeQuestions: false
+    });
+
+    engine.advanceToNextItem();
+
+    assert.deepEqual(engine.revealAnswer(), {
+        phase: QuizEnginePhase.QUESTION,
+        currentIndex: 0,
+        currentItem: multipleChoiceItem,
+        itemCount: 1
+    });
+});
+
 test("QuizEngine advances through randomized item indexes", () => {
     const firstItem = item("First?");
     const secondItem = item("Second?");

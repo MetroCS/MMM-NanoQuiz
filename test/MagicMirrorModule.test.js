@@ -197,3 +197,56 @@ test("MagicMirror module advances multiple-choice items through the quiz engine 
     assert.deepEqual([...moduleInstance.eliminatedIndexes], []);
     assert.equal(moduleInstance.phase, "question");
 });
+
+test("MagicMirror module reveals one-answer items through the quiz engine", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+    let revealWasCalled = false;
+    let scheduledAnswerPhase = false;
+    let updated = false;
+    let timerCalls = 0;
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: moduleDefinition.defaults,
+        currentItem: {
+            question: "Question?",
+            answer: "Answer",
+            type: "oneAnswer"
+        },
+        phase: "question",
+        timer: null,
+        engine: {
+            revealAnswer() {
+                revealWasCalled = true;
+                return {
+                    phase: "answer"
+                };
+            }
+        },
+        updateDom() {
+            updated = true;
+        }
+    };
+
+    globalThis.setTimeout = (callback) => {
+        timerCalls += 1;
+        if (timerCalls === 1) {
+            callback();
+        }
+        return 1;
+    };
+    globalThis.clearTimeout = () => {};
+
+    try {
+        moduleInstance.scheduleCurrentPhase();
+        scheduledAnswerPhase = moduleInstance.phase === "answer";
+    } finally {
+        globalThis.setTimeout = originalSetTimeout;
+        globalThis.clearTimeout = originalClearTimeout;
+    }
+
+    assert.equal(revealWasCalled, true);
+    assert.equal(updated, true);
+    assert.equal(scheduledAnswerPhase, true);
+});

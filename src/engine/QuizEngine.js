@@ -1,4 +1,5 @@
 export const QuizEnginePhase = Object.freeze({
+    ANSWER: "answer",
     EMPTY: "empty",
     READY: "ready",
     QUESTION: "question"
@@ -53,6 +54,20 @@ export class QuizEngine {
         }
 
         this.#phase = QuizEnginePhase.QUESTION;
+        return this.getSnapshot();
+    }
+
+    revealAnswer() {
+        const currentItem = this.#items[this.#currentIndex];
+
+        if (
+            this.#phase === QuizEnginePhase.QUESTION &&
+            currentItem &&
+            currentItem.type !== "multipleChoice"
+        ) {
+            this.#phase = QuizEnginePhase.ANSWER;
+        }
+
         return this.getSnapshot();
     }
 

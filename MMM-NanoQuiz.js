@@ -303,7 +303,7 @@ Module.register("MMM-NanoQuiz", {
                     this.phase = "eliminating";
                     this.eliminateNextChoice();
                 } else {
-                    this.phase = "answer";
+                    this.phase = this.engine.revealAnswer().phase;
                     this.updateDom(this.config.animationSpeed);
                     this.scheduleCurrentPhase();
                 }
