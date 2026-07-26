@@ -6,6 +6,7 @@ test("MagicMirror adapter exposes the bridge globally", async () => {
 
     await import("../src/adapter/MagicMirrorAdapter.mjs");
 
+    assert.equal(typeof globalThis.NanoQuizAdapter.createQuizEngine, "function");
     assert.equal(typeof globalThis.NanoQuizAdapter.loadNanoQuizItems, "function");
     assert.equal(typeof globalThis.NanoQuizAdapter.validateNanoQuizItems, "function");
 });

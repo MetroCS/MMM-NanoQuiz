@@ -38,12 +38,11 @@ Module.register("MMM-NanoQuiz", {
     start() {
         Log.info(`Starting module: ${this.name}`);
         this.items = [];
+        this.engine = null;
         this.currentItem = null;
         this.currentIndex = -1;
         this.phase = "loading";
         this.eliminatedIndexes = new Set();
-        this.eliminationOrder = [];
-        this.timer = null;
         this.reloadTimer = null;
         this.errorMessage = null;
         this.nextRequestId = 1;
@@ -52,7 +51,9 @@ Module.register("MMM-NanoQuiz", {
     },
 
     suspend() {
-        this.clearTimer();
+        if (this.engine) {
+            this.engine.pause();
+        }
         if (this.reloadTimer) {
             clearInterval(this.reloadTimer);
             this.reloadTimer = null;
@@ -60,8 +61,8 @@ Module.register("MMM-NanoQuiz", {
     },
 
     resume() {
-        if (this.items.length > 0 && !this.timer) {
-            this.scheduleCurrentPhase();
+        if (this.engine) {
+            this.engine.resume();
         }
         if (this.config.dataUrl && !this.reloadTimer) {
             this.startReloadTimer();
@@ -70,7 +71,9 @@ Module.register("MMM-NanoQuiz", {
 
     notificationReceived(notification) {
         if (notification === "NANOQUIZ_NEXT") {
-            this.advanceItem();
+            if (this.engine) {
+                this.engine.skipToNext();
+            }
         } else if (notification === "NANOQUIZ_RELOAD") {
             this.loadItems();
         }
@@ -102,7 +105,13 @@ Module.register("MMM-NanoQuiz", {
     },
 
     async loadItems() {
-        this.clearTimer();
+        if (this.engine) {
+            this.engine.pause();
+        }
+        this.engine = null;
+        this.currentItem = null;
+        this.currentIndex = -1;
+        this.eliminatedIndexes = new Set();
         this.phase = "loading";
         this.errorMessage = null;
         this.updateDom(this.config.animationSpeed);
@@ -116,7 +125,10 @@ Module.register("MMM-NanoQuiz", {
 
             this.items = validItems;
             this.currentIndex = -1;
-            this.advanceItem();
+            this.engine = this.createEngine(validItems);
+            this.engine.start({
+                onChange: (snapshot) => this.applySnapshot(snapshot)
+            });
 
             if (this.config.dataUrl) {
                 this.startReloadTimer();
@@ -144,6 +156,22 @@ Module.register("MMM-NanoQuiz", {
             logger: {
                 warn: (message) => Log.warn(`${this.name}: ${message}`)
             }
+        });
+    },
+
+    createEngine(items) {
+        if (
+            typeof NanoQuizAdapter === "undefined" ||
+            typeof NanoQuizAdapter.createQuizEngine !== "function"
+        ) {
+            throw new Error("NanoQuiz adapter bridge was not loaded.");
+        }
+
+        return NanoQuizAdapter.createQuizEngine(items, {
+            avoidImmediateRepeats: this.config.avoidImmediateRepeats,
+            randomizeChoices: this.config.randomizeChoices,
+            randomizeQuestions: this.config.randomizeQuestions,
+            timing: this.config.timing
         });
     },
 
@@ -213,125 +241,16 @@ Module.register("MMM-NanoQuiz", {
         }
     },
 
-    advanceItem() {
-        if (this.items.length === 0) {
+    applySnapshot(snapshot) {
+        if (!snapshot.currentItem) {
             return;
         }
 
-        this.clearTimer();
-        const previousIndex = this.currentIndex;
-
-        if (this.config.randomizeQuestions && this.items.length > 1) {
-            do {
-                this.currentIndex = Math.floor(Math.random() * this.items.length);
-            } while (this.config.avoidImmediateRepeats && this.currentIndex === previousIndex);
-        } else {
-            this.currentIndex = (this.currentIndex + 1) % this.items.length;
-        }
-
-        this.currentItem = this.prepareItem(this.items[this.currentIndex]);
-        this.eliminatedIndexes = new Set();
-        this.eliminationOrder = this.buildEliminationOrder(this.currentItem);
-        this.phase = "question";
+        this.currentIndex = snapshot.currentIndex;
+        this.currentItem = snapshot.currentItem;
+        this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
+        this.phase = snapshot.phase;
         this.updateDom(this.config.animationSpeed);
-        this.scheduleCurrentPhase();
-    },
-
-    prepareItem(item) {
-        const prepared = {
-            ...item,
-            choices: item.choices ? [...item.choices] : undefined
-        };
-
-        if (prepared.type === "multipleChoice" && this.config.randomizeChoices) {
-            for (let index = prepared.choices.length - 1; index > 0; index -= 1) {
-                const randomIndex = Math.floor(Math.random() * (index + 1));
-                [prepared.choices[index], prepared.choices[randomIndex]] = [
-                    prepared.choices[randomIndex],
-                    prepared.choices[index]
-                ];
-            }
-        }
-
-        return prepared;
-    },
-
-    buildEliminationOrder(item) {
-        if (!item || item.type !== "multipleChoice") {
-            return [];
-        }
-
-        const indexes = item.choices
-            .map((choice, index) => ({ choice, index }))
-            .filter(({ choice }) => choice !== item.answer)
-            .map(({ index }) => index);
-
-        for (let index = indexes.length - 1; index > 0; index -= 1) {
-            const randomIndex = Math.floor(Math.random() * (index + 1));
-            [indexes[index], indexes[randomIndex]] = [indexes[randomIndex], indexes[index]];
-        }
-
-        return indexes;
-    },
-
-    scheduleCurrentPhase() {
-        this.clearTimer();
-        if (!this.currentItem) {
-            return;
-        }
-
-        const timing = this.currentItem.type === "multipleChoice"
-            ? this.config.timing.multipleChoice
-            : this.config.timing.oneAnswer;
-
-        if (this.phase === "question") {
-            this.timer = setTimeout(() => {
-                if (this.currentItem.type === "multipleChoice") {
-                    this.phase = "eliminating";
-                    this.eliminateNextChoice();
-                } else {
-                    this.phase = "answer";
-                    this.updateDom(this.config.animationSpeed);
-                    this.scheduleCurrentPhase();
-                }
-            }, timing.questionDuration);
-        } else if (this.phase === "eliminating") {
-            this.timer = setTimeout(
-                () => this.eliminateNextChoice(),
-                timing.eliminationInterval
-            );
-        } else if (this.phase === "answer") {
-            this.timer = setTimeout(() => this.advanceItem(), timing.answerDuration);
-        }
-    },
-
-    eliminateNextChoice() {
-        const nextIndex = this.eliminationOrder[this.eliminatedIndexes.size];
-
-        if (nextIndex === undefined) {
-            this.phase = "answer";
-            this.updateDom(this.config.animationSpeed);
-            this.scheduleCurrentPhase();
-            return;
-        }
-
-        this.eliminatedIndexes.add(nextIndex);
-        this.updateDom(this.config.animationSpeed);
-
-        if (this.eliminatedIndexes.size >= this.eliminationOrder.length) {
-            this.phase = "answer";
-            this.updateDom(this.config.animationSpeed);
-            this.scheduleCurrentPhase();
-        } else {
-            this.scheduleCurrentPhase();
-        }
-    },
-
-    clearTimer() {
-        if (this.timer) {
-            clearTimeout(this.timer);
-            this.timer = null;
-        }
     },
 
     getDom() {

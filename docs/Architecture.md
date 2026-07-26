@@ -130,6 +130,12 @@ Representative object:
 
 The engine is event-oriented and does not manipulate the DOM. Renderers observe engine state or events and translate them into host-specific output.
 
+The first presentation engine increments introduce `QuizEngine` as a renderer-independent owner of quiz item sequencing and answer reveal progression. It accepts validated quiz items, advances to the next item, supports sequential or randomized question order, can avoid immediate repeats when randomizing, prepares multiple-choice choice order, derives answer-safe elimination order, transitions one-answer items from question to answer, coordinates multiple-choice elimination, and exposes immutable snapshots containing the current phase, item index, prepared item, eliminated choice indexes, item count, and next transition delay.
+
+The current engine increment adds autonomous timing: `start({ onChange, scheduleTimeout, clearTimeout })` selects the first item, notifies `onChange` with each snapshot, and arms a transition using injected `scheduleTimeout`/`clearTimeout` functions so the engine drives itself through question, elimination, and answer phases and on to the next item without a caller invoking each transition manually. `pause()` cancels the pending transition without losing engine state, `resume()` re-arms a transition for the current phase, and `skipToNext()` cancels any pending transition and advances immediately, supporting a host's "show the next item now" control. The manual transition methods (`advanceToNextItem`, `revealAnswer`, `startMultipleChoiceElimination`, `eliminateNextChoice`) remain available and side-effect-free for direct use in tests or callers that do not want autonomous progression. Injecting the scheduling functions keeps `QuizEngine` free of a hard dependency on any specific timer implementation and lets tests observe and trigger transitions deterministically instead of waiting on real time.
+
+MagicMirror integration creates a `QuizEngine` after configured quiz items are loaded and calls `start()` with an `onChange` callback that copies each snapshot into local module state and re-renders. The adapter no longer owns timers, phase-transition logic, or elimination sequencing: `suspend()`/`resume()` call `engine.pause()`/`engine.resume()`, and the `NANOQUIZ_NEXT` notification calls `engine.skipToNext()`. Reloading configured quiz content pauses the previous engine before creating and starting a replacement so only one engine drives the module's rendered state at a time.
+
 ### Presentation Strategies
 
 Presentation strategies encapsulate behavior that varies by interaction type.
@@ -162,7 +168,7 @@ The MagicMirror adapter is responsible for:
 
 The adapter must not own quiz validation, sequencing rules, or presentation strategy behavior.
 
-The adapter delegates configured quiz loading and raw quiz validation through the framework adapter bridge, then translates diagnostics into host logging. It still owns MagicMirror path resolution, text requests, lifecycle behavior, timers, and DOM rendering. Local module files are requested by the browser. Remote URLs are requested through `node_helper.js` so browser CORS policy does not prevent MagicMirror from loading quiz content from servers that do not explicitly allow `localhost`. Because MagicMirror loads the module entrypoint through its classic browser runtime, a small `.mjs` bridge imports adapter-facing source modules and exposes narrow entrypoints to the MagicMirror module.
+The adapter delegates configured quiz loading and raw quiz validation through the framework adapter bridge, then translates diagnostics into host logging. It delegates presentation timing and sequencing to `QuizEngine`, driving it with `start()`, `pause()`, `resume()`, and `skipToNext()` and re-rendering from the snapshots the engine reports through `onChange`. The adapter still owns MagicMirror path resolution, text requests, lifecycle behavior, and DOM rendering. Local module files are requested by the browser. Remote URLs are requested through `node_helper.js` so browser CORS policy does not prevent MagicMirror from loading quiz content from servers that do not explicitly allow `localhost`. Because MagicMirror loads the module entrypoint through its classic browser runtime, a small `.mjs` bridge imports adapter-facing source modules and exposes narrow entrypoints to the MagicMirror module.
 
 Additional adapters may support standalone browser previews, authoring tools, or other display environments.
 
@@ -243,23 +249,9 @@ Tests should not require MagicMirror or a browser unless the behavior under test
 
 The architecture describes the intended framework as it is being developed incrementally. Not every named component is necessarily implemented yet.
 
-The current development focus is the quiz model and validation milestone described in [`ROADMAP.md`](../ROADMAP.md).
+Completed framework foundations include immutable quiz model values, structured validation, in-memory/local/remote JSON source abstractions, and MagicMirror adapter integration for configured source loading.
 
-The first increment of this milestone establishes immutable value objects and behavior-oriented tests for:
-
-- `QuizItem`
-- `Diagnostic`
-- `ValidationResult`
-
-The second increment introduces a minimal `QuizValidator` happy path for already well-formed question/answer definitions.
-
-The third increment adds structured error diagnostics for invalid top-level input, invalid item shapes, and missing question/answer fields.
-
-The fourth increment normalizes accepted string fields by trimming surrounding whitespace before creating `QuizItem` objects.
-
-The final question/answer validation increment adds warnings for optional text fields that are present but not strings.
-
-The multiple-choice validation increment treats a raw item with `choices` as multiple-choice content. It must provide exactly four non-empty string choices, and the normalized answer must match exactly one normalized choice.
+The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The engine establishes renderer-independent item sequencing, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, multiple-choice elimination state, phase timing metadata, and autonomous timer-driven progression through `start()`, `pause()`, `resume()`, and `skipToNext()`. MagicMirror integration now consists of starting the engine and rendering the snapshots it reports; the adapter no longer schedules timers or drives phase transitions itself. Presentation-strategy-specific behavior (moving the question/answer and multiple-choice conditionals out of the engine and into dedicated strategies) remains a future increment.
 
 ## Related Documents
 
