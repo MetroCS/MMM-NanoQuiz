@@ -110,6 +110,81 @@ test("MagicMirror module creates a quiz engine through the adapter bridge", asyn
     }
 });
 
+test("MagicMirror module suppresses dataFile in the resolved source config when it is only the default", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: {
+            ...moduleDefinition.defaults,
+            dataUrl: "https://example.test/questions.json"
+        }
+    };
+
+    assert.deepEqual(moduleInstance.resolvedSourceConfig(), {
+        ...moduleDefinition.defaults,
+        dataUrl: "https://example.test/questions.json",
+        dataFile: null
+    });
+});
+
+test("MagicMirror module keeps an explicitly configured dataFile alongside dataUrl", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: {
+            ...moduleDefinition.defaults,
+            dataUrl: "https://example.test/questions.json",
+            dataFile: "custom-questions.json"
+        }
+    };
+
+    assert.deepEqual(moduleInstance.resolvedSourceConfig(), moduleInstance.config);
+});
+
+test("MagicMirror module leaves the resolved source config unchanged when dataUrl is not configured", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: moduleDefinition.defaults
+    };
+
+    assert.deepEqual(moduleInstance.resolvedSourceConfig(), moduleDefinition.defaults);
+});
+
+test("MagicMirror module loads configured items using the resolved source config", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalAdapter = globalThis.NanoQuizAdapter;
+    const calls = [];
+
+    globalThis.NanoQuizAdapter = {
+        async loadNanoQuizItems(options) {
+            calls.push(options);
+            return [];
+        }
+    };
+
+    try {
+        const moduleInstance = {
+            ...moduleDefinition,
+            config: {
+                ...moduleDefinition.defaults,
+                dataUrl: "https://example.test/questions.json"
+            }
+        };
+
+        await moduleInstance.loadConfiguredItems();
+
+        assert.equal(calls.length, 1);
+        assert.deepEqual(calls[0].config, {
+            ...moduleDefinition.defaults,
+            dataUrl: "https://example.test/questions.json",
+            dataFile: null
+        });
+    } finally {
+        globalThis.NanoQuizAdapter = originalAdapter;
+    }
+});
+
 test("MagicMirror module applies one-answer engine snapshots to local state", async () => {
     const moduleDefinition = await loadModuleDefinition();
     const item = {

@@ -150,13 +150,26 @@ Module.register("MMM-NanoQuiz", {
         }
 
         return NanoQuizAdapter.loadNanoQuizItems({
-            config: this.config,
+            config: this.resolvedSourceConfig(),
             resolveFile: (file) => this.file(file),
             requestText: (source) => this.requestText(source),
             logger: {
                 warn: (message) => Log.warn(`${this.name}: ${message}`)
             }
         });
+    },
+
+    resolvedSourceConfig() {
+        const usesDefaultDataFile = this.config.dataFile === this.defaults.dataFile;
+
+        if (this.config.dataUrl && usesDefaultDataFile) {
+            return {
+                ...this.config,
+                dataFile: null
+            };
+        }
+
+        return this.config;
     },
 
     createEngine(items) {
