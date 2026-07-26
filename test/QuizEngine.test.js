@@ -19,14 +19,16 @@ test("QuizEngine starts empty when no items are available", () => {
         currentIndex: -1,
         currentItem: null,
         eliminatedChoiceIndexes: [],
-        itemCount: 0
+        itemCount: 0,
+        nextTransitionDelay: null
     });
     assert.deepEqual(engine.advanceToNextItem(), {
         phase: QuizEnginePhase.EMPTY,
         currentIndex: -1,
         currentItem: null,
         eliminatedChoiceIndexes: [],
-        itemCount: 0
+        itemCount: 0,
+        nextTransitionDelay: null
     });
 });
 
@@ -39,7 +41,8 @@ test("QuizEngine starts ready before the first item is selected", () => {
         currentIndex: -1,
         currentItem: null,
         eliminatedChoiceIndexes: [],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: null
     });
 });
 
@@ -55,14 +58,16 @@ test("QuizEngine advances through items sequentially", () => {
         currentIndex: 0,
         currentItem: firstItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 2
+        itemCount: 2,
+        nextTransitionDelay: 12000
     });
     assert.deepEqual(engine.advanceToNextItem(), {
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 1,
         currentItem: secondItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 2
+        itemCount: 2,
+        nextTransitionDelay: 12000
     });
     assert.equal(engine.advanceToNextItem().currentIndex, 0);
 });
@@ -83,7 +88,8 @@ test("QuizEngine snapshots can carry multiple-choice items", () => {
         currentIndex: 0,
         currentItem: multipleChoiceItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 12000
     });
 });
 
@@ -141,8 +147,57 @@ test("QuizEngine reveals one-answer items", () => {
         currentIndex: 0,
         currentItem: firstItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 7000
     });
+});
+
+test("QuizEngine exposes configured one-answer phase timing", () => {
+    const firstItem = item("First?");
+    const engine = new QuizEngine([firstItem], {
+        randomizeQuestions: false,
+        timing: {
+            oneAnswer: {
+                questionDuration: 1000,
+                answerDuration: 2000
+            },
+            multipleChoice: {
+                questionDuration: 3000,
+                eliminationInterval: 4000,
+                answerDuration: 5000
+            }
+        }
+    });
+
+    assert.equal(engine.advanceToNextItem().nextTransitionDelay, 1000);
+    assert.equal(engine.revealAnswer().nextTransitionDelay, 2000);
+});
+
+test("QuizEngine exposes configured multiple-choice phase timing", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const engine = new QuizEngine([multipleChoiceItem], {
+        randomizeQuestions: false,
+        timing: {
+            oneAnswer: {
+                questionDuration: 1000,
+                answerDuration: 2000
+            },
+            multipleChoice: {
+                questionDuration: 3000,
+                eliminationInterval: 4000,
+                answerDuration: 5000
+            }
+        }
+    });
+
+    assert.equal(engine.advanceToNextItem().nextTransitionDelay, 3000);
+    assert.equal(engine.startMultipleChoiceElimination([0]).nextTransitionDelay, 4000);
+    assert.equal(engine.eliminateNextChoice().nextTransitionDelay, 5000);
 });
 
 test("QuizEngine does not reveal answers before an item is selected", () => {
@@ -154,7 +209,8 @@ test("QuizEngine does not reveal answers before an item is selected", () => {
         currentIndex: -1,
         currentItem: null,
         eliminatedChoiceIndexes: [],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: null
     });
 });
 
@@ -176,7 +232,8 @@ test("QuizEngine does not reveal multiple-choice answers directly", () => {
         currentIndex: 0,
         currentItem: multipleChoiceItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 12000
     });
 });
 
@@ -198,28 +255,32 @@ test("QuizEngine eliminates multiple-choice answers before revealing the answer"
         currentIndex: 0,
         currentItem: multipleChoiceItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 3000
     });
     assert.deepEqual(engine.eliminateNextChoice(), {
         phase: QuizEnginePhase.ELIMINATING,
         currentIndex: 0,
         currentItem: multipleChoiceItem,
         eliminatedChoiceIndexes: [0],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 3000
     });
     assert.deepEqual(engine.eliminateNextChoice(), {
         phase: QuizEnginePhase.ELIMINATING,
         currentIndex: 0,
         currentItem: multipleChoiceItem,
         eliminatedChoiceIndexes: [0, 1],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 3000
     });
     assert.deepEqual(engine.eliminateNextChoice(), {
         phase: QuizEnginePhase.ANSWER,
         currentIndex: 0,
         currentItem: multipleChoiceItem,
         eliminatedChoiceIndexes: [0, 1, 3],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 7000
     });
 });
 
@@ -252,7 +313,8 @@ test("QuizEngine builds multiple-choice elimination order from the prepared item
             choices: ["B", "D", "C", "A"]
         }),
         eliminatedChoiceIndexes: [1, 0, 3],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 7000
     });
 });
 
@@ -274,7 +336,8 @@ test("QuizEngine reveals multiple-choice answers immediately with an empty elimi
         currentIndex: 0,
         currentItem: multipleChoiceItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 1
+        itemCount: 1,
+        nextTransitionDelay: 7000
     });
 });
 
@@ -299,7 +362,8 @@ test("QuizEngine resets eliminated choices when advancing to a new item", () => 
         currentIndex: 1,
         currentItem: nextItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 2
+        itemCount: 2,
+        nextTransitionDelay: 12000
     });
 });
 
@@ -341,14 +405,16 @@ test("QuizEngine advances through randomized item indexes", () => {
         currentIndex: 2,
         currentItem: thirdItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 3
+        itemCount: 3,
+        nextTransitionDelay: 12000
     });
     assert.deepEqual(engine.advanceToNextItem(), {
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 0,
         currentItem: firstItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 3
+        itemCount: 3,
+        nextTransitionDelay: 12000
     });
 });
 

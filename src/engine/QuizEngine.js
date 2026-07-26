@@ -1,5 +1,17 @@
 import { QuizItem } from "../model/QuizItem.js";
 
+const DEFAULT_TIMING = Object.freeze({
+    oneAnswer: Object.freeze({
+        questionDuration: 12000,
+        answerDuration: 7000
+    }),
+    multipleChoice: Object.freeze({
+        questionDuration: 12000,
+        eliminationInterval: 3000,
+        answerDuration: 7000
+    })
+});
+
 export const QuizEnginePhase = Object.freeze({
     ANSWER: "answer",
     ELIMINATING: "eliminating",
@@ -14,6 +26,7 @@ export class QuizEngine {
     #randomizeQuestions;
     #randomizeChoices;
     #avoidImmediateRepeats;
+    #timing;
     #currentIndex = -1;
     #currentItem = null;
     #eliminatedChoiceIndexes = [];
@@ -24,7 +37,8 @@ export class QuizEngine {
         random = Math.random,
         randomizeQuestions = true,
         randomizeChoices = false,
-        avoidImmediateRepeats = true
+        avoidImmediateRepeats = true,
+        timing = DEFAULT_TIMING
     } = {}) {
         if (!Array.isArray(items)) {
             throw new Error("QuizEngine requires an array of quiz items.");
@@ -35,6 +49,7 @@ export class QuizEngine {
         this.#randomizeQuestions = randomizeQuestions;
         this.#randomizeChoices = randomizeChoices;
         this.#avoidImmediateRepeats = avoidImmediateRepeats;
+        this.#timing = this.#normalizeTiming(timing);
         this.#phase = this.#items.length > 0
             ? QuizEnginePhase.READY
             : QuizEnginePhase.EMPTY;
@@ -46,7 +61,8 @@ export class QuizEngine {
             currentIndex: this.#currentIndex,
             currentItem: this.#currentItem,
             eliminatedChoiceIndexes: Object.freeze([...this.#eliminatedChoiceIndexes]),
-            itemCount: this.#items.length
+            itemCount: this.#items.length,
+            nextTransitionDelay: this.#getNextTransitionDelay()
         });
     }
 
@@ -138,6 +154,43 @@ export class QuizEngine {
             ...item,
             choices
         });
+    }
+
+    #getNextTransitionDelay() {
+        if (!this.#currentItem) {
+            return null;
+        }
+
+        const timing = this.#currentItem.type === "multipleChoice"
+            ? this.#timing.multipleChoice
+            : this.#timing.oneAnswer;
+
+        if (this.#phase === QuizEnginePhase.QUESTION) {
+            return timing.questionDuration;
+        }
+
+        if (this.#phase === QuizEnginePhase.ELIMINATING) {
+            return timing.eliminationInterval;
+        }
+
+        if (this.#phase === QuizEnginePhase.ANSWER) {
+            return timing.answerDuration;
+        }
+
+        return null;
+    }
+
+    #normalizeTiming(timing) {
+        return {
+            oneAnswer: {
+                ...DEFAULT_TIMING.oneAnswer,
+                ...timing.oneAnswer
+            },
+            multipleChoice: {
+                ...DEFAULT_TIMING.multipleChoice,
+                ...timing.multipleChoice
+            }
+        };
     }
 
     #buildEliminationOrder(item) {

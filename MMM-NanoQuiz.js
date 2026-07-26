@@ -42,6 +42,7 @@ Module.register("MMM-NanoQuiz", {
         this.currentItem = null;
         this.currentIndex = -1;
         this.phase = "loading";
+        this.nextTransitionDelay = null;
         this.eliminatedIndexes = new Set();
         this.timer = null;
         this.reloadTimer = null;
@@ -159,7 +160,8 @@ Module.register("MMM-NanoQuiz", {
         return NanoQuizAdapter.createQuizEngine(items, {
             avoidImmediateRepeats: this.config.avoidImmediateRepeats,
             randomizeChoices: this.config.randomizeChoices,
-            randomizeQuestions: this.config.randomizeQuestions
+            randomizeQuestions: this.config.randomizeQuestions,
+            timing: this.config.timing
         });
     },
 
@@ -245,6 +247,7 @@ Module.register("MMM-NanoQuiz", {
         this.currentItem = snapshot.currentItem;
         this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
         this.phase = snapshot.phase;
+        this.nextTransitionDelay = snapshot.nextTransitionDelay;
         this.updateDom(this.config.animationSpeed);
         this.scheduleCurrentPhase();
     },
@@ -255,9 +258,9 @@ Module.register("MMM-NanoQuiz", {
             return;
         }
 
-        const timing = this.currentItem.type === "multipleChoice"
-            ? this.config.timing.multipleChoice
-            : this.config.timing.oneAnswer;
+        if (this.nextTransitionDelay === null) {
+            return;
+        }
 
         if (this.phase === "question") {
             this.timer = setTimeout(() => {
@@ -265,6 +268,7 @@ Module.register("MMM-NanoQuiz", {
                     const snapshot = this.engine.startMultipleChoiceElimination();
                     this.phase = snapshot.phase;
                     this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
+                    this.nextTransitionDelay = snapshot.nextTransitionDelay;
 
                     if (this.phase === "eliminating") {
                         this.eliminateNextChoice();
@@ -273,18 +277,20 @@ Module.register("MMM-NanoQuiz", {
                         this.scheduleCurrentPhase();
                     }
                 } else {
-                    this.phase = this.engine.revealAnswer().phase;
+                    const snapshot = this.engine.revealAnswer();
+                    this.phase = snapshot.phase;
+                    this.nextTransitionDelay = snapshot.nextTransitionDelay;
                     this.updateDom(this.config.animationSpeed);
                     this.scheduleCurrentPhase();
                 }
-            }, timing.questionDuration);
+            }, this.nextTransitionDelay);
         } else if (this.phase === "eliminating") {
             this.timer = setTimeout(
                 () => this.eliminateNextChoice(),
-                timing.eliminationInterval
+                this.nextTransitionDelay
             );
         } else if (this.phase === "answer") {
-            this.timer = setTimeout(() => this.advanceItem(), timing.answerDuration);
+            this.timer = setTimeout(() => this.advanceItem(), this.nextTransitionDelay);
         }
     },
 
@@ -292,6 +298,7 @@ Module.register("MMM-NanoQuiz", {
         const snapshot = this.engine.eliminateNextChoice();
         this.phase = snapshot.phase;
         this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
+        this.nextTransitionDelay = snapshot.nextTransitionDelay;
         this.updateDom(this.config.animationSpeed);
         this.scheduleCurrentPhase();
     },

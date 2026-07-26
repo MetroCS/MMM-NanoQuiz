@@ -100,7 +100,8 @@ test("MagicMirror module creates a quiz engine through the adapter bridge", asyn
                 options: {
                     avoidImmediateRepeats: false,
                     randomizeChoices: false,
-                    randomizeQuestions: false
+                    randomizeQuestions: false,
+                    timing: moduleDefinition.defaults.timing
                 }
             }
         ]);
@@ -249,6 +250,43 @@ test("MagicMirror module reveals one-answer items through the quiz engine", asyn
     assert.equal(revealWasCalled, true);
     assert.equal(updated, true);
     assert.equal(scheduledAnswerPhase, true);
+});
+
+test("MagicMirror module schedules phases with the engine snapshot delay", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+    let scheduledDelay = null;
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: moduleDefinition.defaults,
+        currentItem: {
+            question: "Question?",
+            answer: "Answer",
+            type: "oneAnswer"
+        },
+        nextTransitionDelay: 4321,
+        phase: "answer",
+        timer: null,
+        advanceItem() {
+            throw new Error("Unexpected advance");
+        }
+    };
+
+    globalThis.setTimeout = (callback, delay) => {
+        scheduledDelay = delay;
+        return 1;
+    };
+    globalThis.clearTimeout = () => {};
+
+    try {
+        moduleInstance.scheduleCurrentPhase();
+    } finally {
+        globalThis.setTimeout = originalSetTimeout;
+        globalThis.clearTimeout = originalClearTimeout;
+    }
+
+    assert.equal(scheduledDelay, 4321);
 });
 
 test("MagicMirror module starts multiple-choice elimination through the quiz engine", async () => {

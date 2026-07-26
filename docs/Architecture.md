@@ -130,11 +130,11 @@ Representative object:
 
 The engine is event-oriented and does not manipulate the DOM. Renderers observe engine state or events and translate them into host-specific output.
 
-The first presentation engine increments introduce `QuizEngine` as a renderer-independent owner of quiz item sequencing and answer reveal progression. It accepts validated quiz items, advances to the next item, supports sequential or randomized question order, can avoid immediate repeats when randomizing, prepares multiple-choice choice order, derives answer-safe elimination order, transitions one-answer items from question to answer, coordinates multiple-choice elimination, and exposes immutable snapshots containing the current phase, item index, prepared item, eliminated choice indexes, and item count.
+The first presentation engine increments introduce `QuizEngine` as a renderer-independent owner of quiz item sequencing and answer reveal progression. It accepts validated quiz items, advances to the next item, supports sequential or randomized question order, can avoid immediate repeats when randomizing, prepares multiple-choice choice order, derives answer-safe elimination order, transitions one-answer items from question to answer, coordinates multiple-choice elimination, and exposes immutable snapshots containing the current phase, item index, prepared item, eliminated choice indexes, item count, and next transition delay.
 
-MagicMirror integration creates a `QuizEngine` after configured quiz items are loaded and uses engine snapshots to select the current prepared item, reveal one-answer answers, and advance multiple-choice elimination state. This proves the adapter can consume engine state without moving the rest of the presentation workflow yet.
+MagicMirror integration creates a `QuizEngine` after configured quiz items are loaded and uses engine snapshots to select the current prepared item, reveal one-answer answers, advance multiple-choice elimination state, and schedule the next phase using the engine-provided delay. This proves the adapter can consume engine state without moving the rest of the presentation workflow yet.
 
-This slice intentionally does not own timers or DOM rendering. Those behaviors remain in the MagicMirror adapter until later engine and presentation strategy increments define their framework-level contracts.
+This slice intentionally does not execute timers or own DOM rendering. Those behaviors remain in the MagicMirror adapter until later engine and presentation strategy increments define their framework-level contracts.
 
 ### Presentation Strategies
 
@@ -251,7 +251,7 @@ The architecture describes the intended framework as it is being developed incre
 
 Completed framework foundations include immutable quiz model values, structured validation, in-memory/local/remote JSON source abstractions, and MagicMirror adapter integration for configured source loading.
 
-The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The current engine increment establishes renderer-independent item sequencing, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, multiple-choice elimination state, and thin MagicMirror integration for item selection, one-answer transitions, and multiple-choice elimination advancement. Timed phase scheduling, DOM rendering, and strategy-specific behavior remain future increments.
+The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The current engine increment establishes renderer-independent item sequencing, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, multiple-choice elimination state, phase timing metadata, and thin MagicMirror integration for item selection, one-answer transitions, multiple-choice elimination advancement, and timer scheduling from engine snapshots. Timer execution, DOM rendering, and strategy-specific behavior remain future increments.
 
 ## Related Documents
 

@@ -23,7 +23,8 @@ test("createQuizEngine creates an engine configured for MagicMirror question ord
         currentIndex: 0,
         currentItem: firstItem,
         eliminatedChoiceIndexes: [],
-        itemCount: 2
+        itemCount: 2,
+        nextTransitionDelay: 12000
     });
 });
 
