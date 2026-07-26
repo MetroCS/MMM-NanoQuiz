@@ -11,6 +11,37 @@ function item(question) {
     });
 }
 
+function fakeScheduler() {
+    let nextHandle = 1;
+    const pending = new Map();
+
+    return {
+        scheduleTimeout(callback, delay) {
+            const handle = nextHandle;
+            nextHandle += 1;
+            pending.set(handle, { callback, delay });
+            return handle;
+        },
+        clearTimeout(handle) {
+            pending.delete(handle);
+        },
+        pendingCount() {
+            return pending.size;
+        },
+        pendingDelay() {
+            const [entry] = [...pending.values()].slice(-1);
+            return entry ? entry.delay : null;
+        },
+        fireLatest() {
+            const handles = [...pending.keys()];
+            const handle = handles[handles.length - 1];
+            const entry = pending.get(handle);
+            pending.delete(handle);
+            entry.callback();
+        }
+    };
+}
+
 test("QuizEngine starts empty when no items are available", () => {
     const engine = new QuizEngine([]);
 
@@ -459,4 +490,168 @@ test("QuizEngine rejects non-array item collections", () => {
         () => new QuizEngine(null),
         /QuizEngine requires an array of quiz items\./
     );
+});
+
+test("QuizEngine start selects the first item and arms an automatic transition", () => {
+    const firstItem = item("First?");
+    const secondItem = item("Second?");
+    const engine = new QuizEngine([firstItem, secondItem], {
+        randomizeQuestions: false
+    });
+    const scheduler = fakeScheduler();
+    const snapshots = [];
+
+    const started = engine.start({
+        onChange: (snapshot) => snapshots.push(snapshot),
+        scheduleTimeout: scheduler.scheduleTimeout,
+        clearTimeout: scheduler.clearTimeout
+    });
+
+    assert.equal(started.phase, QuizEnginePhase.QUESTION);
+    assert.equal(started.currentItem, firstItem);
+    assert.deepEqual(snapshots, [started]);
+    assert.equal(scheduler.pendingCount(), 1);
+    assert.equal(scheduler.pendingDelay(), 12000);
+});
+
+test("QuizEngine start only begins autonomous progression once", () => {
+    const firstItem = item("First?");
+    const secondItem = item("Second?");
+    const engine = new QuizEngine([firstItem, secondItem], {
+        randomizeQuestions: false
+    });
+    const scheduler = fakeScheduler();
+
+    engine.start({
+        scheduleTimeout: scheduler.scheduleTimeout,
+        clearTimeout: scheduler.clearTimeout
+    });
+    const second = engine.start({
+        scheduleTimeout: scheduler.scheduleTimeout,
+        clearTimeout: scheduler.clearTimeout
+    });
+
+    assert.equal(second.currentItem, firstItem);
+    assert.equal(scheduler.pendingCount(), 1);
+});
+
+test("QuizEngine autonomously advances a one-answer item through question, answer, and the next item", () => {
+    const firstItem = item("First?");
+    const secondItem = item("Second?");
+    const engine = new QuizEngine([firstItem, secondItem], {
+        randomizeQuestions: false
+    });
+    const scheduler = fakeScheduler();
+    const snapshots = [];
+
+    engine.start({
+        onChange: (snapshot) => snapshots.push(snapshot),
+        scheduleTimeout: scheduler.scheduleTimeout,
+        clearTimeout: scheduler.clearTimeout
+    });
+
+    scheduler.fireLatest();
+    assert.equal(snapshots.at(-1).phase, QuizEnginePhase.ANSWER);
+    assert.equal(snapshots.at(-1).currentItem, firstItem);
+    assert.equal(scheduler.pendingDelay(), 7000);
+
+    scheduler.fireLatest();
+    assert.equal(snapshots.at(-1).phase, QuizEnginePhase.QUESTION);
+    assert.equal(snapshots.at(-1).currentItem, secondItem);
+    assert.equal(scheduler.pendingDelay(), 12000);
+});
+
+test("QuizEngine autonomously drives a multiple-choice item through elimination to the answer", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const engine = new QuizEngine([multipleChoiceItem], {
+        randomizeQuestions: false
+    });
+    const scheduler = fakeScheduler();
+    const snapshots = [];
+
+    engine.start({
+        onChange: (snapshot) => snapshots.push(snapshot),
+        scheduleTimeout: scheduler.scheduleTimeout,
+        clearTimeout: scheduler.clearTimeout
+    });
+
+    scheduler.fireLatest();
+    assert.equal(snapshots.at(-1).phase, QuizEnginePhase.ELIMINATING);
+    assert.equal(scheduler.pendingDelay(), 3000);
+
+    scheduler.fireLatest();
+    scheduler.fireLatest();
+    scheduler.fireLatest();
+    assert.equal(snapshots.at(-1).phase, QuizEnginePhase.ANSWER);
+    assert.deepEqual(snapshots.at(-1).eliminatedChoiceIndexes.length, 3);
+    assert.equal(scheduler.pendingDelay(), 7000);
+});
+
+test("QuizEngine pause cancels the pending automatic transition", () => {
+    const engine = new QuizEngine([item("First?")]);
+    const scheduler = fakeScheduler();
+
+    engine.start({
+        scheduleTimeout: scheduler.scheduleTimeout,
+        clearTimeout: scheduler.clearTimeout
+    });
+    assert.equal(scheduler.pendingCount(), 1);
+
+    engine.pause();
+
+    assert.equal(scheduler.pendingCount(), 0);
+});
+
+test("QuizEngine resume re-arms the automatic transition for the current phase", () => {
+    const engine = new QuizEngine([item("First?")]);
+    const scheduler = fakeScheduler();
+    const snapshots = [];
+
+    engine.start({
+        onChange: (snapshot) => snapshots.push(snapshot),
+        scheduleTimeout: scheduler.scheduleTimeout,
+        clearTimeout: scheduler.clearTimeout
+    });
+    engine.pause();
+    snapshots.length = 0;
+
+    const resumed = engine.resume();
+
+    assert.equal(resumed.phase, QuizEnginePhase.QUESTION);
+    assert.deepEqual(snapshots, [resumed]);
+    assert.equal(scheduler.pendingCount(), 1);
+    assert.equal(scheduler.pendingDelay(), 12000);
+});
+
+test("QuizEngine resume does nothing before start has been called", () => {
+    const engine = new QuizEngine([item("First?")]);
+
+    assert.deepEqual(engine.resume(), engine.getSnapshot());
+});
+
+test("QuizEngine skipToNext cancels the pending transition and advances immediately", () => {
+    const firstItem = item("First?");
+    const secondItem = item("Second?");
+    const engine = new QuizEngine([firstItem, secondItem], {
+        randomizeQuestions: false
+    });
+    const scheduler = fakeScheduler();
+    const snapshots = [];
+
+    engine.start({
+        onChange: (snapshot) => snapshots.push(snapshot),
+        scheduleTimeout: scheduler.scheduleTimeout,
+        clearTimeout: scheduler.clearTimeout
+    });
+
+    const skipped = engine.skipToNext();
+
+    assert.equal(skipped.currentItem, secondItem);
+    assert.equal(snapshots.at(-1), skipped);
+    assert.equal(scheduler.pendingCount(), 1);
 });

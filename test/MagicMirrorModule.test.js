@@ -110,14 +110,13 @@ test("MagicMirror module creates a quiz engine through the adapter bridge", asyn
     }
 });
 
-test("MagicMirror module advances items through the quiz engine snapshot", async () => {
+test("MagicMirror module applies one-answer engine snapshots to local state", async () => {
     const moduleDefinition = await loadModuleDefinition();
     const item = {
         question: "Question?",
         answer: "Answer",
-        type: "questionAnswer"
+        type: "oneAnswer"
     };
-    let scheduled = false;
     let updated = false;
     const moduleInstance = {
         ...moduleDefinition,
@@ -125,38 +124,26 @@ test("MagicMirror module advances items through the quiz engine snapshot", async
         currentItem: null,
         currentIndex: -1,
         eliminatedIndexes: new Set([0]),
-        engine: {
-            advanceToNextItem() {
-                return {
-                    currentIndex: 2,
-                    currentItem: item,
-                    eliminatedChoiceIndexes: [],
-                    phase: "question"
-                };
-            }
-        },
-        clearTimer() {},
-        scheduleCurrentPhase() {
-            scheduled = true;
-        },
         updateDom() {
             updated = true;
         }
     };
 
-    moduleInstance.advanceItem();
+    moduleInstance.applySnapshot({
+        currentIndex: 2,
+        currentItem: item,
+        eliminatedChoiceIndexes: [],
+        phase: "question"
+    });
 
     assert.equal(moduleInstance.currentIndex, 2);
-    assert.equal(moduleInstance.currentItem.question, item.question);
-    assert.equal(moduleInstance.currentItem.answer, item.answer);
-    assert.equal(moduleInstance.currentItem.type, item.type);
+    assert.equal(moduleInstance.currentItem, item);
     assert.deepEqual([...moduleInstance.eliminatedIndexes], []);
     assert.equal(moduleInstance.phase, "question");
     assert.equal(updated, true);
-    assert.equal(scheduled, true);
 });
 
-test("MagicMirror module advances multiple-choice items through the quiz engine snapshot", async () => {
+test("MagicMirror module applies multiple-choice engine snapshots to local state", async () => {
     const moduleDefinition = await loadModuleDefinition();
     const item = {
         question: "Pick a letter",
@@ -166,225 +153,231 @@ test("MagicMirror module advances multiple-choice items through the quiz engine 
     };
     const moduleInstance = {
         ...moduleDefinition,
-        config: {
-            ...moduleDefinition.defaults,
-            randomizeChoices: false
-        },
+        config: moduleDefinition.defaults,
         currentItem: null,
         currentIndex: -1,
-        eliminatedIndexes: new Set([0]),
-        engine: {
-            advanceToNextItem() {
-                return {
-                    currentIndex: 0,
-                    currentItem: item,
-                    eliminatedChoiceIndexes: [],
-                    phase: "question"
-                };
-            }
-        },
-        clearTimer() {},
-        scheduleCurrentPhase() {},
+        eliminatedIndexes: new Set(),
         updateDom() {}
     };
 
-    moduleInstance.advanceItem();
+    moduleInstance.applySnapshot({
+        currentIndex: 0,
+        currentItem: item,
+        eliminatedChoiceIndexes: [1],
+        phase: "eliminating"
+    });
 
     assert.equal(moduleInstance.currentIndex, 0);
-    assert.equal(moduleInstance.currentItem.question, item.question);
-    assert.equal(moduleInstance.currentItem.answer, item.answer);
-    assert.equal(moduleInstance.currentItem.type, item.type);
-    assert.deepEqual(moduleInstance.currentItem.choices, item.choices);
-    assert.deepEqual([...moduleInstance.eliminatedIndexes], []);
+    assert.equal(moduleInstance.currentItem, item);
+    assert.deepEqual([...moduleInstance.eliminatedIndexes], [1]);
+    assert.equal(moduleInstance.phase, "eliminating");
+});
+
+test("MagicMirror module ignores engine snapshots without a current item", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    let updated = false;
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: moduleDefinition.defaults,
+        currentItem: null,
+        currentIndex: -1,
+        eliminatedIndexes: new Set(),
+        phase: "loading",
+        updateDom() {
+            updated = true;
+        }
+    };
+
+    moduleInstance.applySnapshot({
+        currentIndex: -1,
+        currentItem: null,
+        eliminatedChoiceIndexes: [],
+        phase: "empty"
+    });
+
+    assert.equal(moduleInstance.currentItem, null);
+    assert.equal(moduleInstance.phase, "loading");
+    assert.equal(updated, false);
+});
+
+test("MagicMirror module starts a freshly created engine with itself as the change listener", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const item = { question: "Question?", answer: "Answer", type: "oneAnswer" };
+    const startCalls = [];
+    const fakeEngine = {
+        start(options) {
+            startCalls.push(options);
+        }
+    };
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: moduleDefinition.defaults,
+        currentItem: null,
+        currentIndex: -1,
+        eliminatedIndexes: new Set(),
+        items: [],
+        engine: null,
+        errorMessage: null,
+        phase: "loading",
+        updateDom() {},
+        loadConfiguredItems: async () => [item],
+        createEngine() {
+            return fakeEngine;
+        }
+    };
+
+    await moduleInstance.loadItems();
+
+    assert.equal(moduleInstance.engine, fakeEngine);
+    assert.equal(startCalls.length, 1);
+    assert.equal(typeof startCalls[0].onChange, "function");
+
+    startCalls[0].onChange({
+        currentIndex: 0,
+        currentItem: item,
+        eliminatedChoiceIndexes: [],
+        phase: "question"
+    });
+
+    assert.equal(moduleInstance.currentItem, item);
     assert.equal(moduleInstance.phase, "question");
 });
 
-test("MagicMirror module reveals one-answer items through the quiz engine", async () => {
+test("MagicMirror module pauses the previous engine before starting a new one on reload", async () => {
     const moduleDefinition = await loadModuleDefinition();
-    const originalSetTimeout = globalThis.setTimeout;
-    const originalClearTimeout = globalThis.clearTimeout;
-    let revealWasCalled = false;
-    let scheduledAnswerPhase = false;
-    let updated = false;
-    let timerCalls = 0;
+    const item = { question: "Question?", answer: "Answer", type: "oneAnswer" };
+    let pauseCalled = false;
+    const previousEngine = {
+        pause() {
+            pauseCalled = true;
+        }
+    };
+    const nextEngine = { start() {} };
     const moduleInstance = {
         ...moduleDefinition,
         config: moduleDefinition.defaults,
-        currentItem: {
-            question: "Question?",
-            answer: "Answer",
-            type: "oneAnswer"
-        },
-        phase: "question",
-        timer: null,
-        engine: {
-            revealAnswer() {
-                revealWasCalled = true;
-                return {
-                    phase: "answer"
-                };
-            }
-        },
-        updateDom() {
-            updated = true;
-        }
-    };
-
-    globalThis.setTimeout = (callback) => {
-        timerCalls += 1;
-        if (timerCalls === 1) {
-            callback();
-        }
-        return 1;
-    };
-    globalThis.clearTimeout = () => {};
-
-    try {
-        moduleInstance.scheduleCurrentPhase();
-        scheduledAnswerPhase = moduleInstance.phase === "answer";
-    } finally {
-        globalThis.setTimeout = originalSetTimeout;
-        globalThis.clearTimeout = originalClearTimeout;
-    }
-
-    assert.equal(revealWasCalled, true);
-    assert.equal(updated, true);
-    assert.equal(scheduledAnswerPhase, true);
-});
-
-test("MagicMirror module schedules phases with the engine snapshot delay", async () => {
-    const moduleDefinition = await loadModuleDefinition();
-    const originalSetTimeout = globalThis.setTimeout;
-    const originalClearTimeout = globalThis.clearTimeout;
-    let scheduledDelay = null;
-    const moduleInstance = {
-        ...moduleDefinition,
-        config: moduleDefinition.defaults,
-        currentItem: {
-            question: "Question?",
-            answer: "Answer",
-            type: "oneAnswer"
-        },
-        nextTransitionDelay: 4321,
-        phase: "answer",
-        timer: null,
-        advanceItem() {
-            throw new Error("Unexpected advance");
-        }
-    };
-
-    globalThis.setTimeout = (callback, delay) => {
-        scheduledDelay = delay;
-        return 1;
-    };
-    globalThis.clearTimeout = () => {};
-
-    try {
-        moduleInstance.scheduleCurrentPhase();
-    } finally {
-        globalThis.setTimeout = originalSetTimeout;
-        globalThis.clearTimeout = originalClearTimeout;
-    }
-
-    assert.equal(scheduledDelay, 4321);
-});
-
-test("MagicMirror module starts multiple-choice elimination through the quiz engine", async () => {
-    const moduleDefinition = await loadModuleDefinition();
-    const originalSetTimeout = globalThis.setTimeout;
-    const originalClearTimeout = globalThis.clearTimeout;
-    let eliminationStarted = false;
-    let updated = false;
-    let timerCalls = 0;
-    const moduleInstance = {
-        ...moduleDefinition,
-        config: moduleDefinition.defaults,
-        currentItem: {
-            question: "Pick a letter",
-            answer: "C",
-            type: "multipleChoice",
-            choices: ["A", "B", "C", "D"]
-        },
+        currentItem: null,
+        currentIndex: -1,
         eliminatedIndexes: new Set(),
+        items: [],
+        engine: previousEngine,
+        errorMessage: null,
         phase: "question",
-        timer: null,
-        engine: {
-            startMultipleChoiceElimination() {
-                eliminationStarted = true;
-                return {
-                    phase: "eliminating",
-                    eliminatedChoiceIndexes: []
-                };
-            },
-            eliminateNextChoice() {
-                return {
-                    phase: "eliminating",
-                    eliminatedChoiceIndexes: [0]
-                };
-            }
-        },
-        updateDom() {
-            updated = true;
+        updateDom() {},
+        loadConfiguredItems: async () => [item],
+        createEngine() {
+            return nextEngine;
         }
     };
 
-    globalThis.setTimeout = (callback) => {
-        timerCalls += 1;
-        if (timerCalls === 1) {
-            callback();
-        }
-        return 1;
-    };
-    globalThis.clearTimeout = () => {};
+    await moduleInstance.loadItems();
 
-    try {
-        moduleInstance.scheduleCurrentPhase();
-    } finally {
-        globalThis.setTimeout = originalSetTimeout;
-        globalThis.clearTimeout = originalClearTimeout;
-    }
-
-    assert.equal(eliminationStarted, true);
-    assert.deepEqual([...moduleInstance.eliminatedIndexes], [0]);
-    assert.equal(moduleInstance.phase, "eliminating");
-    assert.equal(updated, true);
+    assert.equal(pauseCalled, true);
+    assert.equal(moduleInstance.engine, nextEngine);
 });
 
-test("MagicMirror module advances multiple-choice elimination through the quiz engine", async () => {
+test("MagicMirror module reports an error and leaves no engine when loading fails", async () => {
     const moduleDefinition = await loadModuleDefinition();
-    let scheduled = false;
-    let updated = false;
     const moduleInstance = {
         ...moduleDefinition,
         config: moduleDefinition.defaults,
-        currentItem: {
-            question: "Pick a letter",
-            answer: "C",
-            type: "multipleChoice",
-            choices: ["A", "B", "C", "D"]
-        },
-        eliminatedIndexes: new Set([0]),
-        phase: "eliminating",
-        engine: {
-            eliminateNextChoice() {
-                return {
-                    phase: "answer",
-                    eliminatedChoiceIndexes: [0, 1, 3]
-                };
-            }
-        },
-        scheduleCurrentPhase() {
-            scheduled = true;
-        },
-        updateDom() {
-            updated = true;
+        currentItem: null,
+        currentIndex: -1,
+        eliminatedIndexes: new Set(),
+        items: [],
+        engine: null,
+        errorMessage: null,
+        phase: "loading",
+        updateDom() {},
+        loadConfiguredItems: async () => {
+            throw new Error("boom");
         }
     };
 
-    moduleInstance.eliminateNextChoice();
+    await moduleInstance.loadItems();
 
-    assert.equal(moduleInstance.phase, "answer");
-    assert.deepEqual([...moduleInstance.eliminatedIndexes], [0, 1, 3]);
-    assert.equal(updated, true);
-    assert.equal(scheduled, true);
+    assert.equal(moduleInstance.phase, "error");
+    assert.equal(moduleInstance.errorMessage, "boom");
+    assert.equal(moduleInstance.engine, null);
+});
+
+test("MagicMirror module forwards NANOQUIZ_NEXT notifications to the engine", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    let skipCalled = false;
+    const moduleInstance = {
+        ...moduleDefinition,
+        engine: {
+            skipToNext() {
+                skipCalled = true;
+            }
+        }
+    };
+
+    moduleInstance.notificationReceived("NANOQUIZ_NEXT");
+
+    assert.equal(skipCalled, true);
+});
+
+test("MagicMirror module ignores NANOQUIZ_NEXT notifications before an engine exists", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const moduleInstance = {
+        ...moduleDefinition,
+        engine: null
+    };
+
+    assert.doesNotThrow(() => moduleInstance.notificationReceived("NANOQUIZ_NEXT"));
+});
+
+test("MagicMirror module pauses the engine and reload timer on suspend", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalClearInterval = globalThis.clearInterval;
+    let pauseCalled = false;
+    let clearedInterval = null;
+    globalThis.clearInterval = (handle) => {
+        clearedInterval = handle;
+    };
+
+    try {
+        const moduleInstance = {
+            ...moduleDefinition,
+            engine: {
+                pause() {
+                    pauseCalled = true;
+                }
+            },
+            reloadTimer: "reload-handle"
+        };
+
+        moduleInstance.suspend();
+
+        assert.equal(pauseCalled, true);
+        assert.equal(clearedInterval, "reload-handle");
+        assert.equal(moduleInstance.reloadTimer, null);
+    } finally {
+        globalThis.clearInterval = originalClearInterval;
+    }
+});
+
+test("MagicMirror module resumes the engine and restarts the reload timer", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    let resumeCalled = false;
+    let reloadTimerStarted = false;
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: { dataUrl: "https://example.test/questions.json" },
+        engine: {
+            resume() {
+                resumeCalled = true;
+            }
+        },
+        reloadTimer: null,
+        startReloadTimer() {
+            reloadTimerStarted = true;
+        }
+    };
+
+    moduleInstance.resume();
+
+    assert.equal(resumeCalled, true);
+    assert.equal(reloadTimerStarted, true);
 });

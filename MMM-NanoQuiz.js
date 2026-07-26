@@ -42,9 +42,7 @@ Module.register("MMM-NanoQuiz", {
         this.currentItem = null;
         this.currentIndex = -1;
         this.phase = "loading";
-        this.nextTransitionDelay = null;
         this.eliminatedIndexes = new Set();
-        this.timer = null;
         this.reloadTimer = null;
         this.errorMessage = null;
         this.nextRequestId = 1;
@@ -53,7 +51,9 @@ Module.register("MMM-NanoQuiz", {
     },
 
     suspend() {
-        this.clearTimer();
+        if (this.engine) {
+            this.engine.pause();
+        }
         if (this.reloadTimer) {
             clearInterval(this.reloadTimer);
             this.reloadTimer = null;
@@ -61,8 +61,8 @@ Module.register("MMM-NanoQuiz", {
     },
 
     resume() {
-        if (this.items.length > 0 && !this.timer) {
-            this.scheduleCurrentPhase();
+        if (this.engine) {
+            this.engine.resume();
         }
         if (this.config.dataUrl && !this.reloadTimer) {
             this.startReloadTimer();
@@ -71,7 +71,9 @@ Module.register("MMM-NanoQuiz", {
 
     notificationReceived(notification) {
         if (notification === "NANOQUIZ_NEXT") {
-            this.advanceItem();
+            if (this.engine) {
+                this.engine.skipToNext();
+            }
         } else if (notification === "NANOQUIZ_RELOAD") {
             this.loadItems();
         }
@@ -103,7 +105,9 @@ Module.register("MMM-NanoQuiz", {
     },
 
     async loadItems() {
-        this.clearTimer();
+        if (this.engine) {
+            this.engine.pause();
+        }
         this.phase = "loading";
         this.errorMessage = null;
         this.updateDom(this.config.animationSpeed);
@@ -116,9 +120,11 @@ Module.register("MMM-NanoQuiz", {
             }
 
             this.items = validItems;
-            this.engine = this.createEngine(validItems);
             this.currentIndex = -1;
-            this.advanceItem();
+            this.engine = this.createEngine(validItems);
+            this.engine.start({
+                onChange: (snapshot) => this.applySnapshot(snapshot)
+            });
 
             if (this.config.dataUrl) {
                 this.startReloadTimer();
@@ -231,14 +237,7 @@ Module.register("MMM-NanoQuiz", {
         }
     },
 
-    advanceItem() {
-        if (!this.engine) {
-            return;
-        }
-
-        this.clearTimer();
-        const snapshot = this.engine.advanceToNextItem();
-
+    applySnapshot(snapshot) {
         if (!snapshot.currentItem) {
             return;
         }
@@ -247,67 +246,7 @@ Module.register("MMM-NanoQuiz", {
         this.currentItem = snapshot.currentItem;
         this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
         this.phase = snapshot.phase;
-        this.nextTransitionDelay = snapshot.nextTransitionDelay;
         this.updateDom(this.config.animationSpeed);
-        this.scheduleCurrentPhase();
-    },
-
-    scheduleCurrentPhase() {
-        this.clearTimer();
-        if (!this.currentItem) {
-            return;
-        }
-
-        if (this.nextTransitionDelay === null) {
-            return;
-        }
-
-        if (this.phase === "question") {
-            this.timer = setTimeout(() => {
-                if (this.currentItem.type === "multipleChoice") {
-                    const snapshot = this.engine.startMultipleChoiceElimination();
-                    this.phase = snapshot.phase;
-                    this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
-                    this.nextTransitionDelay = snapshot.nextTransitionDelay;
-
-                    if (this.phase === "eliminating") {
-                        this.eliminateNextChoice();
-                    } else {
-                        this.updateDom(this.config.animationSpeed);
-                        this.scheduleCurrentPhase();
-                    }
-                } else {
-                    const snapshot = this.engine.revealAnswer();
-                    this.phase = snapshot.phase;
-                    this.nextTransitionDelay = snapshot.nextTransitionDelay;
-                    this.updateDom(this.config.animationSpeed);
-                    this.scheduleCurrentPhase();
-                }
-            }, this.nextTransitionDelay);
-        } else if (this.phase === "eliminating") {
-            this.timer = setTimeout(
-                () => this.eliminateNextChoice(),
-                this.nextTransitionDelay
-            );
-        } else if (this.phase === "answer") {
-            this.timer = setTimeout(() => this.advanceItem(), this.nextTransitionDelay);
-        }
-    },
-
-    eliminateNextChoice() {
-        const snapshot = this.engine.eliminateNextChoice();
-        this.phase = snapshot.phase;
-        this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
-        this.nextTransitionDelay = snapshot.nextTransitionDelay;
-        this.updateDom(this.config.animationSpeed);
-        this.scheduleCurrentPhase();
-    },
-
-    clearTimer() {
-        if (this.timer) {
-            clearTimeout(this.timer);
-            this.timer = null;
-        }
     },
 
     getDom() {

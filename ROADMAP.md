@@ -32,7 +32,7 @@ Implement an event-oriented state machine that manages quiz sequencing, timing, 
 
 **Result:** Quiz behavior can execute and be tested independently of any renderer.
 
-**Current increment:** Extend the `QuizEngine` slice with renderer-independent item sequencing, empty/ready/question/eliminating/answer phases, sequential or randomized advancement, avoid-immediate-repeat behavior, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, multiple-choice elimination state, and phase timing metadata. MagicMirror now uses this engine for item selection, one-answer question-to-answer transitions, multiple-choice elimination advancement, and timer delays while retaining adapter-owned timer execution and DOM rendering.
+**Current increment:** Extend the `QuizEngine` slice with renderer-independent item sequencing, empty/ready/question/eliminating/answer phases, sequential or randomized advancement, avoid-immediate-repeat behavior, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, multiple-choice elimination state, phase timing metadata, and autonomous timer-driven progression. `start()`, `pause()`, `resume()`, and `skipToNext()` let the engine own transition timing itself, using injected `scheduleTimeout`/`clearTimeout` functions so the behavior stays host-independent and testable without real timers. MagicMirror now starts the engine once per load and re-renders from the snapshots it reports through `onChange`, retaining only DOM rendering as adapter-owned presentation behavior.
 
 ## 5. Presentation Strategies
 
@@ -46,7 +46,7 @@ Connect the framework to MagicMirror lifecycle, configuration, and DOM rendering
 
 **Result:** MMM-NanoQuiz operates as a complete MagicMirror module whose core behavior remains framework-independent.
 
-**Current integration:** The MagicMirror module delegates configured quiz loading and validation to the framework adapter bridge. The bridge selects `RemoteJsonSource` when `dataUrl` is configured and `LocalJsonSource` otherwise, warning when both `dataUrl` and `dataFile` are present. The MagicMirror module retains responsibility for host URL resolution, local browser requests, helper-mediated remote requests, lifecycle, timers, logging, and DOM rendering.
+**Current integration:** The MagicMirror module delegates configured quiz loading and validation to the framework adapter bridge. The bridge selects `RemoteJsonSource` when `dataUrl` is configured and `LocalJsonSource` otherwise, warning when both `dataUrl` and `dataFile` are present. The module also delegates presentation timing and sequencing to `QuizEngine`, driving it with `start()`/`pause()`/`resume()`/`skipToNext()` instead of scheduling timers itself. The MagicMirror module retains responsibility for host URL resolution, local browser requests, helper-mediated remote requests, lifecycle, logging, and DOM rendering.
 
 **Future refinement:** Improve MagicMirror configuration override behavior so explicitly configured values suppress conflicting defaults. In particular, a config that specifies only `dataUrl` should not warn that both `dataFile` and `dataUrl` were configured merely because the module default includes `dataFile: "questions.json"`.
 

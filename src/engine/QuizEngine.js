@@ -20,6 +20,9 @@ export const QuizEnginePhase = Object.freeze({
     QUESTION: "question"
 });
 
+const DEFAULT_SCHEDULE_TIMEOUT = (callback, delay) => setTimeout(callback, delay);
+const DEFAULT_CANCEL_TIMEOUT = (handle) => clearTimeout(handle);
+
 export class QuizEngine {
     #items;
     #random;
@@ -32,6 +35,12 @@ export class QuizEngine {
     #eliminatedChoiceIndexes = [];
     #eliminationOrder = [];
     #phase;
+    #started = false;
+    #running = false;
+    #onChange = () => {};
+    #scheduleTimeout = DEFAULT_SCHEDULE_TIMEOUT;
+    #cancelTimeout = DEFAULT_CANCEL_TIMEOUT;
+    #pendingTimerHandle = null;
 
     constructor(items, {
         random = Math.random,
@@ -53,6 +62,52 @@ export class QuizEngine {
         this.#phase = this.#items.length > 0
             ? QuizEnginePhase.READY
             : QuizEnginePhase.EMPTY;
+    }
+
+    start({
+        onChange = () => {},
+        scheduleTimeout = DEFAULT_SCHEDULE_TIMEOUT,
+        clearTimeout: cancelTimeout = DEFAULT_CANCEL_TIMEOUT
+    } = {}) {
+        if (this.#started) {
+            return this.getSnapshot();
+        }
+
+        this.#started = true;
+        this.#running = true;
+        this.#onChange = onChange;
+        this.#scheduleTimeout = scheduleTimeout;
+        this.#cancelTimeout = cancelTimeout;
+
+        return this.#emitAndArm(this.advanceToNextItem());
+    }
+
+    pause() {
+        if (!this.#running) {
+            return this.getSnapshot();
+        }
+
+        this.#running = false;
+        this.#cancelPendingTimer();
+        return this.getSnapshot();
+    }
+
+    resume() {
+        if (!this.#started || this.#running) {
+            return this.getSnapshot();
+        }
+
+        this.#running = true;
+        return this.#emitAndArm(this.getSnapshot());
+    }
+
+    skipToNext() {
+        if (!this.#started) {
+            return this.getSnapshot();
+        }
+
+        this.#cancelPendingTimer();
+        return this.#emitAndArm(this.advanceToNextItem());
     }
 
     getSnapshot() {
@@ -137,6 +192,46 @@ export class QuizEngine {
         }
 
         return this.getSnapshot();
+    }
+
+    #emitAndArm(snapshot) {
+        this.#onChange(snapshot);
+        this.#armTimer(snapshot);
+        return snapshot;
+    }
+
+    #armTimer(snapshot) {
+        this.#cancelPendingTimer();
+
+        if (!this.#running || snapshot.nextTransitionDelay === null) {
+            return;
+        }
+
+        this.#pendingTimerHandle = this.#scheduleTimeout(() => {
+            this.#pendingTimerHandle = null;
+            this.#advanceAutomatically(snapshot);
+        }, snapshot.nextTransitionDelay);
+    }
+
+    #advanceAutomatically(snapshot) {
+        if (snapshot.phase === QuizEnginePhase.QUESTION) {
+            this.#emitAndArm(
+                snapshot.currentItem.type === "multipleChoice"
+                    ? this.startMultipleChoiceElimination()
+                    : this.revealAnswer()
+            );
+        } else if (snapshot.phase === QuizEnginePhase.ELIMINATING) {
+            this.#emitAndArm(this.eliminateNextChoice());
+        } else if (snapshot.phase === QuizEnginePhase.ANSWER) {
+            this.#emitAndArm(this.advanceToNextItem());
+        }
+    }
+
+    #cancelPendingTimer() {
+        if (this.#pendingTimerHandle !== null) {
+            this.#cancelTimeout(this.#pendingTimerHandle);
+            this.#pendingTimerHandle = null;
+        }
     }
 
     #prepareItem(item) {
