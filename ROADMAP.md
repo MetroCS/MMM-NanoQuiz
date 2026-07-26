@@ -32,6 +32,8 @@ Implement an event-oriented state machine that manages quiz sequencing, timing, 
 
 **Result:** Quiz behavior can execute and be tested independently of any renderer.
 
+**Current increment:** Establish the first `QuizEngine` slice with renderer-independent item sequencing, empty/ready/question phases, sequential or randomized advancement, avoid-immediate-repeat behavior, and immutable presentation snapshots.
+
 ## 5. Presentation Strategies
 
 Introduce strategy-based behavior for supported interaction forms, beginning with question-and-answer and multiple-choice presentations.

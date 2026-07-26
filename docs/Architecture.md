@@ -130,6 +130,10 @@ Representative object:
 
 The engine is event-oriented and does not manipulate the DOM. Renderers observe engine state or events and translate them into host-specific output.
 
+The first presentation engine increment introduces `QuizEngine` as a renderer-independent owner of quiz item sequencing. It accepts validated quiz items, advances to the next item, supports sequential or randomized question order, can avoid immediate repeats when randomizing, and exposes immutable snapshots containing the current phase, item index, item, and item count.
+
+This first slice intentionally does not own timers, answer revelation, multiple-choice elimination, or DOM rendering. Those behaviors remain in the MagicMirror adapter until later engine and presentation strategy increments define their framework-level contracts.
+
 ### Presentation Strategies
 
 Presentation strategies encapsulate behavior that varies by interaction type.
@@ -243,23 +247,9 @@ Tests should not require MagicMirror or a browser unless the behavior under test
 
 The architecture describes the intended framework as it is being developed incrementally. Not every named component is necessarily implemented yet.
 
-The current development focus is the quiz model and validation milestone described in [`ROADMAP.md`](../ROADMAP.md).
+Completed framework foundations include immutable quiz model values, structured validation, in-memory/local/remote JSON source abstractions, and MagicMirror adapter integration for configured source loading.
 
-The first increment of this milestone establishes immutable value objects and behavior-oriented tests for:
-
-- `QuizItem`
-- `Diagnostic`
-- `ValidationResult`
-
-The second increment introduces a minimal `QuizValidator` happy path for already well-formed question/answer definitions.
-
-The third increment adds structured error diagnostics for invalid top-level input, invalid item shapes, and missing question/answer fields.
-
-The fourth increment normalizes accepted string fields by trimming surrounding whitespace before creating `QuizItem` objects.
-
-The final question/answer validation increment adds warnings for optional text fields that are present but not strings.
-
-The multiple-choice validation increment treats a raw item with `choices` as multiple-choice content. It must provide exactly four non-empty string choices, and the normalized answer must match exactly one normalized choice.
+The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The first engine increment establishes renderer-independent item sequencing and immutable presentation snapshots. Timed phase progression, answer revelation, multiple-choice elimination, and strategy-specific behavior remain future increments.
 
 ## Related Documents
 
