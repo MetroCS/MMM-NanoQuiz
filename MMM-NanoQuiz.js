@@ -43,7 +43,6 @@ Module.register("MMM-NanoQuiz", {
         this.currentIndex = -1;
         this.phase = "loading";
         this.eliminatedIndexes = new Set();
-        this.eliminationOrder = [];
         this.timer = null;
         this.reloadTimer = null;
         this.errorMessage = null;
@@ -159,6 +158,7 @@ Module.register("MMM-NanoQuiz", {
 
         return NanoQuizAdapter.createQuizEngine(items, {
             avoidImmediateRepeats: this.config.avoidImmediateRepeats,
+            randomizeChoices: this.config.randomizeChoices,
             randomizeQuestions: this.config.randomizeQuestions
         });
     },
@@ -242,49 +242,11 @@ Module.register("MMM-NanoQuiz", {
         }
 
         this.currentIndex = snapshot.currentIndex;
-        this.currentItem = this.prepareItem(snapshot.currentItem);
-        this.eliminatedIndexes = new Set();
-        this.eliminationOrder = this.buildEliminationOrder(this.currentItem);
-        this.phase = "question";
+        this.currentItem = snapshot.currentItem;
+        this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
+        this.phase = snapshot.phase;
         this.updateDom(this.config.animationSpeed);
         this.scheduleCurrentPhase();
-    },
-
-    prepareItem(item) {
-        const prepared = {
-            ...item,
-            choices: item.choices ? [...item.choices] : undefined
-        };
-
-        if (prepared.type === "multipleChoice" && this.config.randomizeChoices) {
-            for (let index = prepared.choices.length - 1; index > 0; index -= 1) {
-                const randomIndex = Math.floor(Math.random() * (index + 1));
-                [prepared.choices[index], prepared.choices[randomIndex]] = [
-                    prepared.choices[randomIndex],
-                    prepared.choices[index]
-                ];
-            }
-        }
-
-        return prepared;
-    },
-
-    buildEliminationOrder(item) {
-        if (!item || item.type !== "multipleChoice") {
-            return [];
-        }
-
-        const indexes = item.choices
-            .map((choice, index) => ({ choice, index }))
-            .filter(({ choice }) => choice !== item.answer)
-            .map(({ index }) => index);
-
-        for (let index = indexes.length - 1; index > 0; index -= 1) {
-            const randomIndex = Math.floor(Math.random() * (index + 1));
-            [indexes[index], indexes[randomIndex]] = [indexes[randomIndex], indexes[index]];
-        }
-
-        return indexes;
     },
 
     scheduleCurrentPhase() {
@@ -300,9 +262,7 @@ Module.register("MMM-NanoQuiz", {
         if (this.phase === "question") {
             this.timer = setTimeout(() => {
                 if (this.currentItem.type === "multipleChoice") {
-                    const snapshot = this.engine.startMultipleChoiceElimination(
-                        this.eliminationOrder
-                    );
+                    const snapshot = this.engine.startMultipleChoiceElimination();
                     this.phase = snapshot.phase;
                     this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
 

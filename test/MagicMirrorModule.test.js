@@ -99,6 +99,7 @@ test("MagicMirror module creates a quiz engine through the adapter bridge", asyn
                 engineItems: items,
                 options: {
                     avoidImmediateRepeats: false,
+                    randomizeChoices: false,
                     randomizeQuestions: false
                 }
             }
@@ -123,12 +124,13 @@ test("MagicMirror module advances items through the quiz engine snapshot", async
         currentItem: null,
         currentIndex: -1,
         eliminatedIndexes: new Set([0]),
-        eliminationOrder: [0],
         engine: {
             advanceToNextItem() {
                 return {
                     currentIndex: 2,
-                    currentItem: item
+                    currentItem: item,
+                    eliminatedChoiceIndexes: [],
+                    phase: "question"
                 };
             }
         },
@@ -148,7 +150,6 @@ test("MagicMirror module advances items through the quiz engine snapshot", async
     assert.equal(moduleInstance.currentItem.answer, item.answer);
     assert.equal(moduleInstance.currentItem.type, item.type);
     assert.deepEqual([...moduleInstance.eliminatedIndexes], []);
-    assert.deepEqual(moduleInstance.eliminationOrder, []);
     assert.equal(moduleInstance.phase, "question");
     assert.equal(updated, true);
     assert.equal(scheduled, true);
@@ -171,12 +172,13 @@ test("MagicMirror module advances multiple-choice items through the quiz engine 
         currentItem: null,
         currentIndex: -1,
         eliminatedIndexes: new Set([0]),
-        eliminationOrder: [],
         engine: {
             advanceToNextItem() {
                 return {
                     currentIndex: 0,
-                    currentItem: item
+                    currentItem: item,
+                    eliminatedChoiceIndexes: [],
+                    phase: "question"
                 };
             }
         },
@@ -192,8 +194,6 @@ test("MagicMirror module advances multiple-choice items through the quiz engine 
     assert.equal(moduleInstance.currentItem.answer, item.answer);
     assert.equal(moduleInstance.currentItem.type, item.type);
     assert.deepEqual(moduleInstance.currentItem.choices, item.choices);
-    assert.notEqual(moduleInstance.currentItem.choices, item.choices);
-    assert.deepEqual(moduleInstance.eliminationOrder.toSorted(), [0, 1, 3]);
     assert.deepEqual([...moduleInstance.eliminatedIndexes], []);
     assert.equal(moduleInstance.phase, "question");
 });
@@ -255,8 +255,7 @@ test("MagicMirror module starts multiple-choice elimination through the quiz eng
     const moduleDefinition = await loadModuleDefinition();
     const originalSetTimeout = globalThis.setTimeout;
     const originalClearTimeout = globalThis.clearTimeout;
-    const eliminationOrder = [0, 1, 3];
-    let receivedEliminationOrder = null;
+    let eliminationStarted = false;
     let updated = false;
     let timerCalls = 0;
     const moduleInstance = {
@@ -269,12 +268,11 @@ test("MagicMirror module starts multiple-choice elimination through the quiz eng
             choices: ["A", "B", "C", "D"]
         },
         eliminatedIndexes: new Set(),
-        eliminationOrder,
         phase: "question",
         timer: null,
         engine: {
-            startMultipleChoiceElimination(order) {
-                receivedEliminationOrder = order;
+            startMultipleChoiceElimination() {
+                eliminationStarted = true;
                 return {
                     phase: "eliminating",
                     eliminatedChoiceIndexes: []
@@ -308,7 +306,7 @@ test("MagicMirror module starts multiple-choice elimination through the quiz eng
         globalThis.clearTimeout = originalClearTimeout;
     }
 
-    assert.equal(receivedEliminationOrder, eliminationOrder);
+    assert.equal(eliminationStarted, true);
     assert.deepEqual([...moduleInstance.eliminatedIndexes], [0]);
     assert.equal(moduleInstance.phase, "eliminating");
     assert.equal(updated, true);

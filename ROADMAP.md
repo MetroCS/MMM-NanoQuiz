@@ -32,7 +32,7 @@ Implement an event-oriented state machine that manages quiz sequencing, timing, 
 
 **Result:** Quiz behavior can execute and be tested independently of any renderer.
 
-**Current increment:** Extend the `QuizEngine` slice with renderer-independent item sequencing, empty/ready/question/eliminating/answer phases, sequential or randomized advancement, avoid-immediate-repeat behavior, immutable presentation snapshots, one-answer reveal progression, and multiple-choice elimination state. MagicMirror now uses this engine for item selection, one-answer question-to-answer transitions, and multiple-choice elimination advancement while retaining adapter-owned timing, choice randomization, elimination order construction, and DOM rendering.
+**Current increment:** Extend the `QuizEngine` slice with renderer-independent item sequencing, empty/ready/question/eliminating/answer phases, sequential or randomized advancement, avoid-immediate-repeat behavior, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, and multiple-choice elimination state. MagicMirror now uses this engine for item selection, one-answer question-to-answer transitions, and multiple-choice elimination advancement while retaining adapter-owned timing and DOM rendering.
 
 ## 5. Presentation Strategies
 
@@ -47,6 +47,8 @@ Connect the framework to MagicMirror lifecycle, configuration, and DOM rendering
 **Result:** MMM-NanoQuiz operates as a complete MagicMirror module whose core behavior remains framework-independent.
 
 **Current integration:** The MagicMirror module delegates configured quiz loading and validation to the framework adapter bridge. The bridge selects `RemoteJsonSource` when `dataUrl` is configured and `LocalJsonSource` otherwise, warning when both `dataUrl` and `dataFile` are present. The MagicMirror module retains responsibility for host URL resolution, local browser requests, helper-mediated remote requests, lifecycle, timers, logging, and DOM rendering.
+
+**Future refinement:** Improve MagicMirror configuration override behavior so explicitly configured values suppress conflicting defaults. In particular, a config that specifies only `dataUrl` should not warn that both `dataFile` and `dataUrl` were configured merely because the module default includes `dataFile: "questions.json"`.
 
 ## 7. Authoring and Preview Support
 

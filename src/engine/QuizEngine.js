@@ -1,3 +1,5 @@
+import { QuizItem } from "../model/QuizItem.js";
+
 export const QuizEnginePhase = Object.freeze({
     ANSWER: "answer",
     ELIMINATING: "eliminating",
@@ -10,8 +12,10 @@ export class QuizEngine {
     #items;
     #random;
     #randomizeQuestions;
+    #randomizeChoices;
     #avoidImmediateRepeats;
     #currentIndex = -1;
+    #currentItem = null;
     #eliminatedChoiceIndexes = [];
     #eliminationOrder = [];
     #phase;
@@ -19,6 +23,7 @@ export class QuizEngine {
     constructor(items, {
         random = Math.random,
         randomizeQuestions = true,
+        randomizeChoices = false,
         avoidImmediateRepeats = true
     } = {}) {
         if (!Array.isArray(items)) {
@@ -28,6 +33,7 @@ export class QuizEngine {
         this.#items = [...items];
         this.#random = random;
         this.#randomizeQuestions = randomizeQuestions;
+        this.#randomizeChoices = randomizeChoices;
         this.#avoidImmediateRepeats = avoidImmediateRepeats;
         this.#phase = this.#items.length > 0
             ? QuizEnginePhase.READY
@@ -38,7 +44,7 @@ export class QuizEngine {
         return Object.freeze({
             phase: this.#phase,
             currentIndex: this.#currentIndex,
-            currentItem: this.#items[this.#currentIndex] ?? null,
+            currentItem: this.#currentItem,
             eliminatedChoiceIndexes: Object.freeze([...this.#eliminatedChoiceIndexes]),
             itemCount: this.#items.length
         });
@@ -57,19 +63,18 @@ export class QuizEngine {
             this.#currentIndex = (this.#currentIndex + 1) % this.#items.length;
         }
 
+        this.#currentItem = this.#prepareItem(this.#items[this.#currentIndex]);
         this.#phase = QuizEnginePhase.QUESTION;
         this.#eliminatedChoiceIndexes = [];
-        this.#eliminationOrder = [];
+        this.#eliminationOrder = this.#buildEliminationOrder(this.#currentItem);
         return this.getSnapshot();
     }
 
     revealAnswer() {
-        const currentItem = this.#items[this.#currentIndex];
-
         if (
             this.#phase === QuizEnginePhase.QUESTION &&
-            currentItem &&
-            currentItem.type !== "multipleChoice"
+            this.#currentItem &&
+            this.#currentItem.type !== "multipleChoice"
         ) {
             this.#phase = QuizEnginePhase.ANSWER;
         }
@@ -77,14 +82,14 @@ export class QuizEngine {
         return this.getSnapshot();
     }
 
-    startMultipleChoiceElimination(eliminationOrder = []) {
-        const currentItem = this.#items[this.#currentIndex];
-
+    startMultipleChoiceElimination(eliminationOrder) {
         if (
             this.#phase === QuizEnginePhase.QUESTION &&
-            currentItem?.type === "multipleChoice"
+            this.#currentItem?.type === "multipleChoice"
         ) {
-            this.#eliminationOrder = [...eliminationOrder];
+            this.#eliminationOrder = Array.isArray(eliminationOrder)
+                ? [...eliminationOrder]
+                : this.#eliminationOrder;
             this.#eliminatedChoiceIndexes = [];
             this.#phase = this.#eliminationOrder.length > 0
                 ? QuizEnginePhase.ELIMINATING
@@ -116,6 +121,45 @@ export class QuizEngine {
         }
 
         return this.getSnapshot();
+    }
+
+    #prepareItem(item) {
+        if (item.type !== "multipleChoice") {
+            return item;
+        }
+
+        const choices = [...item.choices];
+
+        if (this.#randomizeChoices) {
+            this.#shuffle(choices);
+        }
+
+        return new QuizItem({
+            ...item,
+            choices
+        });
+    }
+
+    #buildEliminationOrder(item) {
+        if (!item || item.type !== "multipleChoice") {
+            return [];
+        }
+
+        const eliminationOrder = item.choices
+            .map((choice, index) => ({ choice, index }))
+            .filter(({ choice }) => choice !== item.answer)
+            .map(({ index }) => index);
+
+        this.#shuffle(eliminationOrder);
+
+        return eliminationOrder;
+    }
+
+    #shuffle(values) {
+        for (let index = values.length - 1; index > 0; index -= 1) {
+            const randomIndex = Math.floor(this.#random() * (index + 1));
+            [values[index], values[randomIndex]] = [values[randomIndex], values[index]];
+        }
     }
 
     #shouldRandomize() {

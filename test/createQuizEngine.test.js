@@ -26,3 +26,25 @@ test("createQuizEngine creates an engine configured for MagicMirror question ord
         itemCount: 2
     });
 });
+
+test("createQuizEngine creates an engine configured for MagicMirror choice order", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const randomValues = [0.1, 0.9, 0.4];
+    const engine = createQuizEngine([multipleChoiceItem], {
+        random: () => randomValues.shift(),
+        randomizeChoices: true,
+        randomizeQuestions: false
+    });
+
+    assert.deepEqual(engine.advanceToNextItem().currentItem.choices, [
+        "B",
+        "D",
+        "C",
+        "A"
+    ]);
+});

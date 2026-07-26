@@ -87,6 +87,47 @@ test("QuizEngine snapshots can carry multiple-choice items", () => {
     });
 });
 
+test("QuizEngine can prepare randomized multiple-choice choices", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const randomValues = [0.1, 0.9, 0.4];
+    const engine = new QuizEngine([multipleChoiceItem], {
+        random: () => randomValues.shift(),
+        randomizeChoices: true,
+        randomizeQuestions: false
+    });
+
+    const snapshot = engine.advanceToNextItem();
+
+    assert.deepEqual(snapshot.currentItem.choices, ["B", "D", "C", "A"]);
+    assert.equal(snapshot.currentItem.answer, "C");
+    assert.notEqual(snapshot.currentItem, multipleChoiceItem);
+    assert.ok(Object.isFrozen(snapshot.currentItem));
+    assert.ok(Object.isFrozen(snapshot.currentItem.choices));
+});
+
+test("QuizEngine preserves multiple-choice order when choices are not randomized", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const engine = new QuizEngine([multipleChoiceItem], {
+        randomizeChoices: false,
+        randomizeQuestions: false
+    });
+
+    const snapshot = engine.advanceToNextItem();
+
+    assert.deepEqual(snapshot.currentItem.choices, ["A", "B", "C", "D"]);
+    assert.notEqual(snapshot.currentItem, multipleChoiceItem);
+});
+
 test("QuizEngine reveals one-answer items", () => {
     const firstItem = item("First?");
     const engine = new QuizEngine([firstItem], {
@@ -182,7 +223,40 @@ test("QuizEngine eliminates multiple-choice answers before revealing the answer"
     });
 });
 
-test("QuizEngine reveals multiple-choice answers immediately without elimination choices", () => {
+test("QuizEngine builds multiple-choice elimination order from the prepared item", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const randomValues = [0.1, 0.9, 0.4, 0.9, 0.1];
+    const engine = new QuizEngine([multipleChoiceItem], {
+        random: () => randomValues.shift(),
+        randomizeChoices: true,
+        randomizeQuestions: false
+    });
+
+    engine.advanceToNextItem();
+    engine.startMultipleChoiceElimination();
+
+    assert.deepEqual(engine.eliminateNextChoice().eliminatedChoiceIndexes, [1]);
+    assert.deepEqual(engine.eliminateNextChoice().eliminatedChoiceIndexes, [1, 0]);
+    assert.deepEqual(engine.eliminateNextChoice(), {
+        phase: QuizEnginePhase.ANSWER,
+        currentIndex: 0,
+        currentItem: new QuizItem({
+            type: "multipleChoice",
+            question: "Pick a letter",
+            answer: "C",
+            choices: ["B", "D", "C", "A"]
+        }),
+        eliminatedChoiceIndexes: [1, 0, 3],
+        itemCount: 1
+    });
+});
+
+test("QuizEngine reveals multiple-choice answers immediately with an empty elimination override", () => {
     const multipleChoiceItem = new QuizItem({
         type: "multipleChoice",
         question: "Pick a letter",
@@ -195,7 +269,7 @@ test("QuizEngine reveals multiple-choice answers immediately without elimination
 
     engine.advanceToNextItem();
 
-    assert.deepEqual(engine.startMultipleChoiceElimination(), {
+    assert.deepEqual(engine.startMultipleChoiceElimination([]), {
         phase: QuizEnginePhase.ANSWER,
         currentIndex: 0,
         currentItem: multipleChoiceItem,
