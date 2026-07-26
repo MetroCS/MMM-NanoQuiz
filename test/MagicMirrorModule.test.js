@@ -185,6 +185,72 @@ test("MagicMirror module loads configured items using the resolved source config
     }
 });
 
+test("MagicMirror module builds presentation content through the adapter bridge", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalAdapter = globalThis.NanoQuizAdapter;
+    const originalDocument = globalThis.document;
+    const calls = [];
+    const fakeContent = {};
+    const fakeDocument = {};
+    const item = { question: "Question?", answer: "Answer", type: "oneAnswer" };
+
+    globalThis.document = fakeDocument;
+    globalThis.NanoQuizAdapter = {
+        presentationStrategyFor(strategyItem) {
+            return {
+                buildContent(document, context) {
+                    calls.push({ document, item: strategyItem, context });
+                    return fakeContent;
+                }
+            };
+        }
+    };
+
+    try {
+        const moduleInstance = {
+            ...moduleDefinition,
+            currentItem: item,
+            phase: "answer",
+            eliminatedIndexes: new Set([1])
+        };
+
+        assert.equal(moduleInstance.buildContentDom(), fakeContent);
+        assert.equal(calls.length, 1);
+        assert.equal(calls[0].document, fakeDocument);
+        assert.equal(calls[0].item, item);
+        assert.deepEqual(calls[0].context, {
+            phase: "answer",
+            item,
+            eliminatedChoiceIndexes: moduleInstance.eliminatedIndexes
+        });
+    } finally {
+        globalThis.NanoQuizAdapter = originalAdapter;
+        globalThis.document = originalDocument;
+    }
+});
+
+test("MagicMirror module requires the adapter bridge to build presentation content", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalAdapter = globalThis.NanoQuizAdapter;
+    globalThis.NanoQuizAdapter = undefined;
+
+    try {
+        const moduleInstance = {
+            ...moduleDefinition,
+            currentItem: { question: "Question?", answer: "Answer" },
+            phase: "question",
+            eliminatedIndexes: new Set()
+        };
+
+        assert.throws(
+            () => moduleInstance.buildContentDom(),
+            /NanoQuiz adapter bridge was not loaded\./
+        );
+    } finally {
+        globalThis.NanoQuizAdapter = originalAdapter;
+    }
+});
+
 test("MagicMirror module applies one-answer engine snapshots to local state", async () => {
     const moduleDefinition = await loadModuleDefinition();
     const item = {

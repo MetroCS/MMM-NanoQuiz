@@ -302,11 +302,7 @@ Module.register("MMM-NanoQuiz", {
         question.textContent = this.currentItem.question;
         wrapper.appendChild(question);
 
-        if (this.currentItem.type === "multipleChoice") {
-            wrapper.appendChild(this.buildChoicesDom());
-        } else {
-            wrapper.appendChild(this.buildOneAnswerDom());
-        }
+        wrapper.appendChild(this.buildContentDom());
 
         if (this.phase === "answer" && this.config.showExplanation && this.currentItem.explanation) {
             const explanation = document.createElement("div");
@@ -325,42 +321,20 @@ Module.register("MMM-NanoQuiz", {
         return wrapper;
     },
 
-    buildOneAnswerDom() {
-        const answer = document.createElement("div");
-        answer.className = "nanoquiz-answer";
-
-        if (this.phase === "answer") {
-            answer.classList.add("nanoquiz-answer-visible", "bright");
-            answer.textContent = this.currentItem.answer;
-        } else {
-            answer.classList.add("nanoquiz-answer-placeholder");
-            answer.setAttribute("aria-hidden", "true");
-            answer.textContent = " ";
+    buildContentDom() {
+        if (
+            typeof NanoQuizAdapter === "undefined" ||
+            typeof NanoQuizAdapter.presentationStrategyFor !== "function"
+        ) {
+            throw new Error("NanoQuiz adapter bridge was not loaded.");
         }
 
-        return answer;
-    },
+        const strategy = NanoQuizAdapter.presentationStrategyFor(this.currentItem);
 
-    buildChoicesDom() {
-        const choices = document.createElement("div");
-        choices.className = "nanoquiz-choices";
-
-        this.currentItem.choices.forEach((choiceText, index) => {
-            const choice = document.createElement("div");
-            choice.className = "nanoquiz-choice";
-            choice.textContent = choiceText;
-
-            if (this.eliminatedIndexes.has(index)) {
-                choice.classList.add("nanoquiz-choice-eliminated");
-            }
-
-            if (this.phase === "answer" && choiceText === this.currentItem.answer) {
-                choice.classList.add("nanoquiz-choice-correct", "bright");
-            }
-
-            choices.appendChild(choice);
+        return strategy.buildContent(document, {
+            phase: this.phase,
+            item: this.currentItem,
+            eliminatedChoiceIndexes: this.eliminatedIndexes
         });
-
-        return choices;
     }
 });

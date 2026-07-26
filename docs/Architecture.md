@@ -19,8 +19,6 @@ Dependencies point toward the domain model.
 ```text
 MagicMirror Adapter and Other Renderers
                  |
-        Presentation Strategies
-                 |
             Quiz Engine
                  |
             Quiz Sources
@@ -136,25 +134,6 @@ The current engine increment adds autonomous timing: `start({ onChange, schedule
 
 MagicMirror integration creates a `QuizEngine` after configured quiz items are loaded and calls `start()` with an `onChange` callback that copies each snapshot into local module state and re-renders. The adapter no longer owns timers, phase-transition logic, or elimination sequencing: `suspend()`/`resume()` call `engine.pause()`/`engine.resume()`, and the `NANOQUIZ_NEXT` notification calls `engine.skipToNext()`. Reloading configured quiz content pauses the previous engine before creating and starting a replacement so only one engine drives the module's rendered state at a time.
 
-### Presentation Strategies
-
-Presentation strategies encapsulate behavior that varies by interaction type.
-
-Primary responsibility:
-
-- define how a particular presentation type progresses and what state it exposes
-
-Strategy contract:
-
-- `PresentationStrategy`
-
-Initial implementations may include:
-
-- `QuestionAnswerPresentation`
-- `MultipleChoicePresentation`
-
-Strategies prevent question-type conditionals from spreading through the engine and renderers.
-
 ### Adapters and Renderers
 
 Adapters connect the framework to a host environment.
@@ -171,6 +150,27 @@ The adapter must not own quiz validation, sequencing rules, or presentation stra
 The adapter delegates configured quiz loading and raw quiz validation through the framework adapter bridge, then translates diagnostics into host logging. Because MagicMirror merges module defaults into `this.config` before the module runs, the adapter first resolves its own configuration through `resolvedSourceConfig()`, which treats `dataFile` as unset when it still equals the compiled-in default and `dataUrl` is configured. This keeps the ambiguity of MagicMirror's config merging out of the framework-level source selection in `loadNanoQuizItems`, which continues to warn correctly whenever both `dataUrl` and a genuinely configured `dataFile` are present. It delegates presentation timing and sequencing to `QuizEngine`, driving it with `start()`, `pause()`, `resume()`, and `skipToNext()` and re-rendering from the snapshots the engine reports through `onChange`. The adapter still owns MagicMirror path resolution, text requests, lifecycle behavior, and DOM rendering. Local module files are requested by the browser. Remote URLs are requested through `node_helper.js` so browser CORS policy does not prevent MagicMirror from loading quiz content from servers that do not explicitly allow `localhost`. Because MagicMirror loads the module entrypoint through its classic browser runtime, a small `.mjs` bridge imports adapter-facing source modules and exposes narrow entrypoints to the MagicMirror module.
 
 Additional adapters may support standalone browser previews, authoring tools, or other display environments.
+
+### Presentation Strategies
+
+Presentation strategies are a rendering-helper bridge inside the MagicMirror adapter, not an independent framework layer. They exist to keep `MMM-NanoQuiz.js` free of per-item-type DOM conditionals: `getDom()` builds the chrome shared by every presentation type (status states, category, question, explanation, progress) directly, and delegates the one piece of markup that varies by item type to a `PresentationStrategy`.
+
+Primary responsibility:
+
+- build the DOM content for the current phase and item, for one presentation type
+
+Strategy contract:
+
+- `PresentationStrategy.buildContent(document, { phase, item, eliminatedChoiceIndexes })`
+
+Implementations:
+
+- `QuestionAnswerPresentation`: renders the answer, hidden behind an accessible placeholder until the answer phase.
+- `MultipleChoicePresentation`: renders one element per choice, marking eliminated choices and the correct choice once the answer phase is reached.
+
+`presentationStrategyFor(item)` selects the right strategy by `item.type` (`multipleChoice`, otherwise question/answer) and is exposed through the adapter bridge as `NanoQuizAdapter.presentationStrategyFor`, alongside `createQuizEngine`, `loadNanoQuizItems`, and `validateNanoQuizItems`. `MMM-NanoQuiz.js`'s `buildContentDom()` looks up the strategy for `this.currentItem` and calls `buildContent(document, ...)`, so `getDom()` itself never branches on item type.
+
+Because this layer exists to keep host-specific rendering code out of `MMM-NanoQuiz.js`, strategies are expected to use DOM APIs (`document.createElement`, `classList`, `textContent`) directly — unlike the framework-core layers below, which must not depend on the DOM. Strategy tests use a minimal in-test fake `document` (an object exposing just `createElement`) so they run under Node without a browser.
 
 ## Data Flow
 
@@ -191,11 +191,11 @@ QuizEngine
     |
 presentation state and events
     v
-Presentation Strategy
-    |
-renderable state
-    v
 Adapter or Renderer
+    |
+selects a Presentation Strategy by item type
+    v
+renderable state
 ```
 
 Invalid source data does not proceed into normal engine operation. Validation diagnostics remain available to adapters, authoring tools, logs, and tests.
@@ -207,10 +207,10 @@ The following rules define the architectural boundary:
 - Domain model objects depend on no framework or infrastructure layer.
 - Validation may depend on the domain model.
 - Quiz sources may provide raw data to validation but do not control validation policy.
-- The engine may depend on validated model objects and presentation contracts.
-- Presentation strategies may depend on domain concepts and engine contracts, but not on host rendering APIs.
-- Adapters may depend on all required framework layers.
-- Core framework layers must not depend on MagicMirror globals, browser DOM APIs, filesystem APIs, or network APIs.
+- The engine may depend on validated model objects; it does not depend on presentation strategies or any adapter.
+- Presentation strategies belong to an adapter. They may depend on the phase, item, and eliminated-choice state the adapter provides, and on that adapter's host rendering APIs, but must not perform quiz validation, sourcing, or sequencing.
+- Adapters may depend on all required framework layers, and select and invoke their own presentation strategies.
+- Core framework layers (model, validation, sources, engine) must not depend on MagicMirror globals, browser DOM APIs, filesystem APIs, or network APIs.
 
 Infrastructure-specific behavior must be placed behind an adapter or source abstraction.
 
@@ -224,7 +224,7 @@ Implement the `QuizSource` contract to obtain raw quiz definitions from another 
 
 ### New Presentation Strategies
 
-Implement the `PresentationStrategy` contract to add another interaction form without changing unrelated strategies.
+Implement the `PresentationStrategy` contract within an adapter to add DOM rendering for another interaction form, and register it with that adapter's strategy lookup (for example, `presentationStrategyFor` in the MagicMirror adapter), without changing unrelated strategies.
 
 ### New Rendering Environments
 
@@ -240,7 +240,7 @@ Tests focus on externally observable behavior.
 - Validator tests verify normalized output and diagnostics.
 - Source tests verify acquisition behavior and source-specific failures.
 - Engine tests verify state transitions and emitted events.
-- Strategy tests verify interaction-specific progression.
+- Strategy tests verify interaction-specific DOM content, using a minimal fake `document` so they run without a browser.
 - Adapter tests verify translation between the host environment and framework behavior.
 
 Tests should not require MagicMirror or a browser unless the behavior under test belongs specifically to the MagicMirror adapter or DOM renderer.
@@ -251,7 +251,9 @@ The architecture describes the intended framework as it is being developed incre
 
 Completed framework foundations include immutable quiz model values, structured validation, in-memory/local/remote JSON source abstractions, and MagicMirror adapter integration for configured source loading.
 
-The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The engine establishes renderer-independent item sequencing, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, multiple-choice elimination state, phase timing metadata, and autonomous timer-driven progression through `start()`, `pause()`, `resume()`, and `skipToNext()`. MagicMirror integration now consists of starting the engine and rendering the snapshots it reports; the adapter no longer schedules timers or drives phase transitions itself. Presentation-strategy-specific behavior (moving the question/answer and multiple-choice conditionals out of the engine and into dedicated strategies) remains a future increment.
+The presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md) is complete. The engine establishes renderer-independent item sequencing, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, multiple-choice elimination state, phase timing metadata, and autonomous timer-driven progression through `start()`, `pause()`, `resume()`, and `skipToNext()`. MagicMirror integration starts the engine and rerenders from the snapshots it reports; the adapter no longer schedules timers or drives phase transitions itself.
+
+The current development focus is the presentation strategies milestone. `PresentationStrategy` (`QuestionAnswerPresentation`, `MultipleChoicePresentation`) now factors the one piece of per-item-type DOM content out of `MMM-NanoQuiz.js`, selected through `presentationStrategyFor` on the adapter bridge. `getDom()` itself no longer branches on item type; note that `QuizEngine.js` still does, internally, for sequencing-level concerns (timing lookup, elimination order, choice preparation) — that internal engine branching was intentionally left as is, since Presentation Strategies were scoped specifically to the adapter's rendering responsibility, not to the engine's internal sequencing logic.
 
 ## Related Documents
 

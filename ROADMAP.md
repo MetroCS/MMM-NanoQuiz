@@ -36,9 +36,11 @@ Implement an event-oriented state machine that manages quiz sequencing, timing, 
 
 ## 5. Presentation Strategies
 
-Introduce strategy-based behavior for supported interaction forms, beginning with question-and-answer and multiple-choice presentations.
+Introduce strategy-based rendering for supported interaction forms, beginning with question-and-answer and multiple-choice presentations, as a bridge that keeps `MMM-NanoQuiz.js` free of per-item-type DOM conditionals.
 
-**Result:** New presentation types can be added through focused strategies rather than conditionals scattered across the engine.
+**Result:** New presentation types can add their own rendering through a focused strategy without editing `MMM-NanoQuiz.js`'s `getDom()` or unrelated strategies.
+
+**Current increment:** `PresentationStrategy` (`QuestionAnswerPresentation`, `MultipleChoicePresentation`) builds the one piece of DOM content that varies by item type; `presentationStrategyFor(item)` selects between them and is exposed through the adapter bridge as `NanoQuizAdapter.presentationStrategyFor`. `MMM-NanoQuiz.js`'s `getDom()` now delegates to `buildContentDom()` instead of branching on `currentItem.type` itself. This milestone is scoped to the adapter's rendering responsibility; `QuizEngine`'s own internal sequencing logic (timing lookup, elimination order, choice preparation) was intentionally left unchanged.
 
 ## 6. MagicMirror Adapter
 
@@ -46,7 +48,7 @@ Connect the framework to MagicMirror lifecycle, configuration, and DOM rendering
 
 **Result:** MMM-NanoQuiz operates as a complete MagicMirror module whose core behavior remains framework-independent.
 
-**Current integration:** The MagicMirror module delegates configured quiz loading and validation to the framework adapter bridge. The bridge selects `RemoteJsonSource` when `dataUrl` is configured and `LocalJsonSource` otherwise, warning when both `dataUrl` and `dataFile` are present. Before delegating, the module resolves its own configuration through `resolvedSourceConfig()`, which treats `dataFile` as unset when it still equals the compiled-in default and `dataUrl` is configured, so a config that specifies only `dataUrl` no longer triggers a spurious "both configured" warning caused by MagicMirror merging in the module's own default. The module also delegates presentation timing and sequencing to `QuizEngine`, driving it with `start()`/`pause()`/`resume()`/`skipToNext()` instead of scheduling timers itself. The MagicMirror module retains responsibility for host URL resolution, local browser requests, helper-mediated remote requests, lifecycle, logging, and DOM rendering.
+**Current integration:** The MagicMirror module delegates configured quiz loading and validation to the framework adapter bridge. The bridge selects `RemoteJsonSource` when `dataUrl` is configured and `LocalJsonSource` otherwise, warning when both `dataUrl` and `dataFile` are present. Before delegating, the module resolves its own configuration through `resolvedSourceConfig()`, which treats `dataFile` as unset when it still equals the compiled-in default and `dataUrl` is configured, so a config that specifies only `dataUrl` no longer triggers a spurious "both configured" warning caused by MagicMirror merging in the module's own default. The module also delegates presentation timing and sequencing to `QuizEngine`, driving it with `start()`/`pause()`/`resume()`/`skipToNext()` instead of scheduling timers itself, and delegates the per-item-type portion of DOM rendering to a `PresentationStrategy` selected through `presentationStrategyFor`. The MagicMirror module retains responsibility for host URL resolution, local browser requests, helper-mediated remote requests, lifecycle, logging, and the DOM chrome shared by every presentation type.
 
 ## 7. Authoring and Preview Support
 
