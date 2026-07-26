@@ -34,6 +34,10 @@ function createNanoQuizSource({ config, resolveFile, requestText, logger }) {
         });
     }
 
+    if (!config.dataFile) {
+        throw new Error("NanoQuiz requires either dataUrl or dataFile to be configured.");
+    }
+
     const path = resolveFile(config.dataFile);
 
     return new LocalJsonSource({

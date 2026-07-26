@@ -127,3 +127,24 @@ test("loadNanoQuizItems preserves source-specific load failures", async () => {
         /Unable to read quiz source \/modules\/MMM-NanoQuiz\/missing\.json: HTTP 404/
     );
 });
+
+test("loadNanoQuizItems reports missing source configuration explicitly", async () => {
+    await assert.rejects(
+        () => loadNanoQuizItems({
+            config: {
+                dataFile: null,
+                dataUrl: null
+            },
+            resolveFile(file) {
+                return `/modules/MMM-NanoQuiz/${file}`;
+            },
+            async requestText() {
+                return "[]";
+            },
+            logger: {
+                warn() {}
+            }
+        }),
+        /NanoQuiz requires either dataUrl or dataFile to be configured\./
+    );
+});

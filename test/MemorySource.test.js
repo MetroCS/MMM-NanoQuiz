@@ -78,6 +78,26 @@ test("MemorySource protects caller-owned raw definitions", async () => {
     ]);
 });
 
+test("MemorySource does not expose mutable backing data", async () => {
+    const source = new MemorySource([
+        {
+            question: "Pick one",
+            answer: "A",
+            choices: ["A", "B", "C", "D"]
+        }
+    ]);
+
+    assert.equal(Object.hasOwn(source, "rawItems"), false);
+    assert.equal(source.rawItems, undefined);
+    assert.deepEqual(await source.loadRawItems(), [
+        {
+            question: "Pick one",
+            answer: "A",
+            choices: ["A", "B", "C", "D"]
+        }
+    ]);
+});
+
 test("MemorySource protects loaded raw definitions", async () => {
     const source = new MemorySource([
         {

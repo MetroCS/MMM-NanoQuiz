@@ -172,7 +172,7 @@ Module.register("MMM-NanoQuiz", {
                 reject(new Error(`Timed out requesting ${source}`));
             }, this.config.remoteRequestTimeout);
 
-            this.pendingTextRequests.set(requestId, {
+            const pendingRequest = {
                 resolve(text) {
                     clearTimeout(timeout);
                     resolve(text);
@@ -181,11 +181,20 @@ Module.register("MMM-NanoQuiz", {
                     clearTimeout(timeout);
                     reject(error);
                 }
-            });
-            this.sendSocketNotification("NANOQUIZ_REQUEST_TEXT", {
-                requestId,
-                source
-            });
+            };
+
+            this.pendingTextRequests.set(requestId, pendingRequest);
+
+            try {
+                this.sendSocketNotification("NANOQUIZ_REQUEST_TEXT", {
+                    requestId,
+                    source,
+                    timeout: this.config.remoteRequestTimeout
+                });
+            } catch (error) {
+                this.pendingTextRequests.delete(requestId);
+                pendingRequest.reject(error);
+            }
         });
     },
 
