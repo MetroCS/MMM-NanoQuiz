@@ -46,7 +46,10 @@ test("QuestionAnswerPresentation hides the answer behind an accessible placehold
     assert.equal(content.className, "nanoquiz-answer");
     assert.ok(content.classList.classes.has("nanoquiz-answer-placeholder"));
     assert.equal(content.attributes["aria-hidden"], "true");
-    assert.equal(content.textContent, " ");
+    // The real answer text is always rendered, just hidden via CSS (visibility, not
+    // display/content), so the answer's eventual height is reserved from the start
+    // and revealing it doesn't reflow surrounding content.
+    assert.equal(content.textContent, "Paris");
 });
 
 test("QuestionAnswerPresentation reveals the answer text during the answer phase", () => {

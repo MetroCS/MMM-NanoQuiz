@@ -14,6 +14,7 @@ Module.register("MMM-NanoQuiz", {
         showProgress: false,
         animationSpeed: 600,
         eliminatedChoiceOpacity: 0.22,
+        explanationOpacity: 1,
         timing: {
             oneAnswer: {
                 questionDuration: 12000,
@@ -259,11 +260,18 @@ Module.register("MMM-NanoQuiz", {
             return;
         }
 
+        const isNewItem = snapshot.currentIndex !== this.currentIndex;
+
         this.currentIndex = snapshot.currentIndex;
         this.currentItem = snapshot.currentItem;
         this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
         this.phase = snapshot.phase;
-        this.updateDom(this.config.animationSpeed);
+
+        // Fading the whole module in/out reads as a smooth transition only between
+        // distinct items. Reusing that same whole-module fade for phase changes within
+        // an item (e.g. every multiple-choice elimination tick) blanks the display
+        // repeatedly and reads as blinking, so those updates apply instantly instead.
+        this.updateDom(isNewItem ? this.config.animationSpeed : 0);
     },
 
     getDom() {
@@ -272,6 +280,10 @@ Module.register("MMM-NanoQuiz", {
         wrapper.style.setProperty(
             "--nanoquiz-eliminated-opacity",
             String(this.config.eliminatedChoiceOpacity)
+        );
+        wrapper.style.setProperty(
+            "--nanoquiz-explanation-opacity",
+            String(this.config.explanationOpacity)
         );
 
         if (this.phase === "loading") {
@@ -304,9 +316,14 @@ Module.register("MMM-NanoQuiz", {
 
         wrapper.appendChild(this.buildContentDom());
 
-        if (this.phase === "answer" && this.config.showExplanation && this.currentItem.explanation) {
+        if (this.config.showExplanation && this.currentItem.explanation) {
             const explanation = document.createElement("div");
-            explanation.className = "nanoquiz-explanation dimmed small";
+            // Always render the explanation, reserving its height from the start of
+            // the item, so revealing it at the answer phase doesn't reflow the
+            // question or choices above it. Only its visibility toggles.
+            explanation.className = this.phase === "answer"
+                ? "nanoquiz-explanation small"
+                : "nanoquiz-explanation nanoquiz-explanation-hidden small";
             explanation.textContent = this.currentItem.explanation;
             wrapper.appendChild(explanation);
         }

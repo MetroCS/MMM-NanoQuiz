@@ -251,6 +251,148 @@ test("MagicMirror module requires the adapter bridge to build presentation conte
     }
 });
 
+function createFakeDomElement() {
+    return {
+        className: "",
+        textContent: "",
+        children: [],
+        attributes: {},
+        styleProps: {},
+        style: {
+            setProperty(name, value) {
+                this.owner.styleProps[name] = value;
+            }
+        },
+        classList: {
+            classes: new Set(),
+            add(...names) {
+                names.forEach((name) => this.classes.add(name));
+            }
+        },
+        setAttribute(name, value) {
+            this.attributes[name] = value;
+        },
+        appendChild(child) {
+            this.children.push(child);
+            return child;
+        }
+    };
+}
+
+function createFakeDomDocument() {
+    return {
+        createElement() {
+            const element = createFakeDomElement();
+            element.style.owner = element;
+            return element;
+        }
+    };
+}
+
+test("MagicMirror module wires the configured explanation opacity and stops dimming it by default", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalAdapter = globalThis.NanoQuizAdapter;
+    const originalDocument = globalThis.document;
+
+    globalThis.document = createFakeDomDocument();
+    globalThis.NanoQuizAdapter = {
+        presentationStrategyFor() {
+            return {
+                buildContent(document) {
+                    return document.createElement("div");
+                }
+            };
+        }
+    };
+
+    try {
+        const item = {
+            question: "Question?",
+            answer: "Answer",
+            type: "oneAnswer",
+            category: "",
+            explanation: "Because reasons."
+        };
+        const moduleInstance = {
+            ...moduleDefinition,
+            config: { ...moduleDefinition.defaults, explanationOpacity: 0.75 },
+            currentItem: item,
+            currentIndex: 0,
+            items: [item],
+            phase: "answer",
+            eliminatedIndexes: new Set(),
+            errorMessage: null
+        };
+
+        const wrapper = moduleInstance.getDom();
+
+        assert.equal(wrapper.styleProps["--nanoquiz-explanation-opacity"], "0.75");
+
+        const explanation = wrapper.children.find(
+            (child) => child.className.includes("nanoquiz-explanation")
+        );
+        assert.ok(explanation);
+        assert.ok(!explanation.className.includes("dimmed"));
+        assert.equal(explanation.textContent, "Because reasons.");
+    } finally {
+        globalThis.NanoQuizAdapter = originalAdapter;
+        globalThis.document = originalDocument;
+    }
+});
+
+test("MagicMirror module reserves space for the explanation before the answer phase", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalAdapter = globalThis.NanoQuizAdapter;
+    const originalDocument = globalThis.document;
+
+    globalThis.document = createFakeDomDocument();
+    globalThis.NanoQuizAdapter = {
+        presentationStrategyFor() {
+            return {
+                buildContent(document) {
+                    return document.createElement("div");
+                }
+            };
+        }
+    };
+
+    try {
+        const item = {
+            question: "Question?",
+            answer: "Answer",
+            type: "oneAnswer",
+            category: "",
+            explanation: "Because reasons."
+        };
+        const moduleInstance = {
+            ...moduleDefinition,
+            config: moduleDefinition.defaults,
+            currentItem: item,
+            currentIndex: 0,
+            items: [item],
+            phase: "question",
+            eliminatedIndexes: new Set(),
+            errorMessage: null
+        };
+
+        const wrapper = moduleInstance.getDom();
+
+        const explanation = wrapper.children.find(
+            (child) => child.className.includes("nanoquiz-explanation")
+        );
+
+        // The explanation is present (and its space reserved) even before the answer
+        // phase, so revealing it later doesn't change the layout height and doesn't
+        // push the question or choices around. It's just visually hidden until then.
+        assert.ok(explanation);
+        assert.equal(explanation.textContent, "Because reasons.");
+        assert.ok(explanation.className.includes("nanoquiz-explanation-hidden"));
+    } finally {
+        globalThis.NanoQuizAdapter = originalAdapter;
+        globalThis.document = originalDocument;
+    }
+});
+
 test("MagicMirror module applies one-answer engine snapshots to local state", async () => {
     const moduleDefinition = await loadModuleDefinition();
     const item = {
@@ -312,6 +454,56 @@ test("MagicMirror module applies multiple-choice engine snapshots to local state
     assert.equal(moduleInstance.currentItem, item);
     assert.deepEqual([...moduleInstance.eliminatedIndexes], [1]);
     assert.equal(moduleInstance.phase, "eliminating");
+});
+
+test("MagicMirror module fades in when a snapshot advances to a new item", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const item = { question: "Second?", answer: "Answer", type: "oneAnswer" };
+    let speedUsed;
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: { ...moduleDefinition.defaults, animationSpeed: 600 },
+        currentItem: { question: "First?", answer: "Answer", type: "oneAnswer" },
+        currentIndex: 0,
+        eliminatedIndexes: new Set(),
+        updateDom(speed) {
+            speedUsed = speed;
+        }
+    };
+
+    moduleInstance.applySnapshot({
+        currentIndex: 1,
+        currentItem: item,
+        eliminatedChoiceIndexes: [],
+        phase: "question"
+    });
+
+    assert.equal(speedUsed, 600);
+});
+
+test("MagicMirror module updates instantly for phase changes within the same item", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const item = { question: "First?", answer: "Answer", type: "oneAnswer" };
+    let speedUsed;
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: { ...moduleDefinition.defaults, animationSpeed: 600 },
+        currentItem: item,
+        currentIndex: 0,
+        eliminatedIndexes: new Set(),
+        updateDom(speed) {
+            speedUsed = speed;
+        }
+    };
+
+    moduleInstance.applySnapshot({
+        currentIndex: 0,
+        currentItem: item,
+        eliminatedChoiceIndexes: [],
+        phase: "answer"
+    });
+
+    assert.equal(speedUsed, 0);
 });
 
 test("MagicMirror module ignores engine snapshots without a current item", async () => {

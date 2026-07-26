@@ -1,1 +1,44 @@
-/* MMM-NanoQuiz styles will live here as the MagicMirror renderer evolves. */
+.nanoquiz-question {
+    margin-bottom: 0.4em;
+}
+
+.nanoquiz-answer {
+    color: palegreen;
+    opacity: 1;
+}
+
+.nanoquiz-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+    margin-top: 0.3em;
+}
+
+.nanoquiz-choice {
+    color: antiquewhite;
+    opacity: 1;
+}
+
+.nanoquiz-choice-eliminated {
+    /*    opacity: var(--nanoquiz-eliminated-opacity, 0.75); */
+    color: sienna;
+    opacity: 0.7;
+}
+
+.nanoquiz-choice-correct {
+    color: palegreen;
+    opacity: 1;
+}
+
+.nanoquiz-explanation {
+    /* opacity: var(--nanoquiz-explanation-opacity, 1); */
+    font-family: serif;
+    color: moccasin;
+    opacity: 1;
+    margin-top: 0.4em;
+}
+
+.nanoquiz-answer-placeholder,
+.nanoquiz-explanation-hidden {
+    visibility: hidden;
+}
