@@ -130,11 +130,11 @@ Representative object:
 
 The engine is event-oriented and does not manipulate the DOM. Renderers observe engine state or events and translate them into host-specific output.
 
-The first presentation engine increment introduces `QuizEngine` as a renderer-independent owner of quiz item sequencing and one-answer reveal progression. It accepts validated quiz items, advances to the next item, supports sequential or randomized question order, can avoid immediate repeats when randomizing, transitions one-answer items from question to answer, and exposes immutable snapshots containing the current phase, item index, item, and item count.
+The first presentation engine increments introduce `QuizEngine` as a renderer-independent owner of quiz item sequencing and answer reveal progression. It accepts validated quiz items, advances to the next item, supports sequential or randomized question order, can avoid immediate repeats when randomizing, transitions one-answer items from question to answer, coordinates multiple-choice elimination once given an elimination order, and exposes immutable snapshots containing the current phase, item index, item, eliminated choice indexes, and item count.
 
-MagicMirror integration creates a `QuizEngine` after configured quiz items are loaded and uses engine snapshots to select the current item and reveal one-answer answers. This proves the adapter can consume engine state without moving the rest of the presentation workflow yet.
+MagicMirror integration creates a `QuizEngine` after configured quiz items are loaded and uses engine snapshots to select the current item, reveal one-answer answers, and advance multiple-choice elimination state. This proves the adapter can consume engine state without moving the rest of the presentation workflow yet.
 
-This first slice intentionally does not own timers, multiple-choice elimination, multiple-choice answer revelation, or DOM rendering. Those behaviors remain in the MagicMirror adapter until later engine and presentation strategy increments define their framework-level contracts.
+This slice intentionally does not own timers, choice randomization, elimination order construction, or DOM rendering. Those behaviors remain in the MagicMirror adapter until later engine and presentation strategy increments define their framework-level contracts.
 
 ### Presentation Strategies
 
@@ -251,7 +251,7 @@ The architecture describes the intended framework as it is being developed incre
 
 Completed framework foundations include immutable quiz model values, structured validation, in-memory/local/remote JSON source abstractions, and MagicMirror adapter integration for configured source loading.
 
-The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The first engine increment establishes renderer-independent item sequencing, immutable presentation snapshots, one-answer reveal progression, and thin MagicMirror integration for item selection and one-answer transitions. Timed phase progression, multiple-choice elimination, multiple-choice answer revelation, and strategy-specific behavior remain future increments.
+The current development focus is the presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md). The current engine increment establishes renderer-independent item sequencing, immutable presentation snapshots, one-answer reveal progression, multiple-choice elimination state, and thin MagicMirror integration for item selection, one-answer transitions, and multiple-choice elimination advancement. Timed phase scheduling, choice randomization, elimination order construction, DOM rendering, and strategy-specific behavior remain future increments.
 
 ## Related Documents
 

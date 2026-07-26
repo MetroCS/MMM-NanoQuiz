@@ -22,6 +22,7 @@ test("createQuizEngine creates an engine configured for MagicMirror question ord
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 0,
         currentItem: firstItem,
+        eliminatedChoiceIndexes: [],
         itemCount: 2
     });
 });

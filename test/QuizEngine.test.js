@@ -18,12 +18,14 @@ test("QuizEngine starts empty when no items are available", () => {
         phase: QuizEnginePhase.EMPTY,
         currentIndex: -1,
         currentItem: null,
+        eliminatedChoiceIndexes: [],
         itemCount: 0
     });
     assert.deepEqual(engine.advanceToNextItem(), {
         phase: QuizEnginePhase.EMPTY,
         currentIndex: -1,
         currentItem: null,
+        eliminatedChoiceIndexes: [],
         itemCount: 0
     });
 });
@@ -36,6 +38,7 @@ test("QuizEngine starts ready before the first item is selected", () => {
         phase: QuizEnginePhase.READY,
         currentIndex: -1,
         currentItem: null,
+        eliminatedChoiceIndexes: [],
         itemCount: 1
     });
 });
@@ -51,12 +54,14 @@ test("QuizEngine advances through items sequentially", () => {
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 0,
         currentItem: firstItem,
+        eliminatedChoiceIndexes: [],
         itemCount: 2
     });
     assert.deepEqual(engine.advanceToNextItem(), {
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 1,
         currentItem: secondItem,
+        eliminatedChoiceIndexes: [],
         itemCount: 2
     });
     assert.equal(engine.advanceToNextItem().currentIndex, 0);
@@ -77,6 +82,7 @@ test("QuizEngine snapshots can carry multiple-choice items", () => {
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 0,
         currentItem: multipleChoiceItem,
+        eliminatedChoiceIndexes: [],
         itemCount: 1
     });
 });
@@ -93,6 +99,7 @@ test("QuizEngine reveals one-answer items", () => {
         phase: QuizEnginePhase.ANSWER,
         currentIndex: 0,
         currentItem: firstItem,
+        eliminatedChoiceIndexes: [],
         itemCount: 1
     });
 });
@@ -105,11 +112,12 @@ test("QuizEngine does not reveal answers before an item is selected", () => {
         phase: QuizEnginePhase.READY,
         currentIndex: -1,
         currentItem: null,
+        eliminatedChoiceIndexes: [],
         itemCount: 1
     });
 });
 
-test("QuizEngine leaves multiple-choice reveal behavior to presentation strategy", () => {
+test("QuizEngine does not reveal multiple-choice answers directly", () => {
     const multipleChoiceItem = new QuizItem({
         type: "multipleChoice",
         question: "Pick a letter",
@@ -126,8 +134,123 @@ test("QuizEngine leaves multiple-choice reveal behavior to presentation strategy
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 0,
         currentItem: multipleChoiceItem,
+        eliminatedChoiceIndexes: [],
         itemCount: 1
     });
+});
+
+test("QuizEngine eliminates multiple-choice answers before revealing the answer", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const engine = new QuizEngine([multipleChoiceItem], {
+        randomizeQuestions: false
+    });
+
+    engine.advanceToNextItem();
+
+    assert.deepEqual(engine.startMultipleChoiceElimination([0, 1, 3]), {
+        phase: QuizEnginePhase.ELIMINATING,
+        currentIndex: 0,
+        currentItem: multipleChoiceItem,
+        eliminatedChoiceIndexes: [],
+        itemCount: 1
+    });
+    assert.deepEqual(engine.eliminateNextChoice(), {
+        phase: QuizEnginePhase.ELIMINATING,
+        currentIndex: 0,
+        currentItem: multipleChoiceItem,
+        eliminatedChoiceIndexes: [0],
+        itemCount: 1
+    });
+    assert.deepEqual(engine.eliminateNextChoice(), {
+        phase: QuizEnginePhase.ELIMINATING,
+        currentIndex: 0,
+        currentItem: multipleChoiceItem,
+        eliminatedChoiceIndexes: [0, 1],
+        itemCount: 1
+    });
+    assert.deepEqual(engine.eliminateNextChoice(), {
+        phase: QuizEnginePhase.ANSWER,
+        currentIndex: 0,
+        currentItem: multipleChoiceItem,
+        eliminatedChoiceIndexes: [0, 1, 3],
+        itemCount: 1
+    });
+});
+
+test("QuizEngine reveals multiple-choice answers immediately without elimination choices", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const engine = new QuizEngine([multipleChoiceItem], {
+        randomizeQuestions: false
+    });
+
+    engine.advanceToNextItem();
+
+    assert.deepEqual(engine.startMultipleChoiceElimination(), {
+        phase: QuizEnginePhase.ANSWER,
+        currentIndex: 0,
+        currentItem: multipleChoiceItem,
+        eliminatedChoiceIndexes: [],
+        itemCount: 1
+    });
+});
+
+test("QuizEngine resets eliminated choices when advancing to a new item", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const nextItem = item("Next?");
+    const engine = new QuizEngine([multipleChoiceItem, nextItem], {
+        randomizeQuestions: false
+    });
+
+    engine.advanceToNextItem();
+    engine.startMultipleChoiceElimination([0]);
+    engine.eliminateNextChoice();
+
+    assert.deepEqual(engine.advanceToNextItem(), {
+        phase: QuizEnginePhase.QUESTION,
+        currentIndex: 1,
+        currentItem: nextItem,
+        eliminatedChoiceIndexes: [],
+        itemCount: 2
+    });
+});
+
+test("QuizEngine snapshots protect eliminated choice indexes", () => {
+    const multipleChoiceItem = new QuizItem({
+        type: "multipleChoice",
+        question: "Pick a letter",
+        answer: "C",
+        choices: ["A", "B", "C", "D"]
+    });
+    const engine = new QuizEngine([multipleChoiceItem], {
+        randomizeQuestions: false
+    });
+
+    engine.advanceToNextItem();
+    engine.startMultipleChoiceElimination([0]);
+    const snapshot = engine.eliminateNextChoice();
+
+    assert.ok(Object.isFrozen(snapshot.eliminatedChoiceIndexes));
+    assert.throws(
+        () => {
+            snapshot.eliminatedChoiceIndexes.push(1);
+        },
+        /Cannot add property/
+    );
 });
 
 test("QuizEngine advances through randomized item indexes", () => {
@@ -143,12 +266,14 @@ test("QuizEngine advances through randomized item indexes", () => {
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 2,
         currentItem: thirdItem,
+        eliminatedChoiceIndexes: [],
         itemCount: 3
     });
     assert.deepEqual(engine.advanceToNextItem(), {
         phase: QuizEnginePhase.QUESTION,
         currentIndex: 0,
         currentItem: firstItem,
+        eliminatedChoiceIndexes: [],
         itemCount: 3
     });
 });

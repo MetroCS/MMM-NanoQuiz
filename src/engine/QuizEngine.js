@@ -1,5 +1,6 @@
 export const QuizEnginePhase = Object.freeze({
     ANSWER: "answer",
+    ELIMINATING: "eliminating",
     EMPTY: "empty",
     READY: "ready",
     QUESTION: "question"
@@ -11,6 +12,8 @@ export class QuizEngine {
     #randomizeQuestions;
     #avoidImmediateRepeats;
     #currentIndex = -1;
+    #eliminatedChoiceIndexes = [];
+    #eliminationOrder = [];
     #phase;
 
     constructor(items, {
@@ -36,6 +39,7 @@ export class QuizEngine {
             phase: this.#phase,
             currentIndex: this.#currentIndex,
             currentItem: this.#items[this.#currentIndex] ?? null,
+            eliminatedChoiceIndexes: Object.freeze([...this.#eliminatedChoiceIndexes]),
             itemCount: this.#items.length
         });
     }
@@ -54,6 +58,8 @@ export class QuizEngine {
         }
 
         this.#phase = QuizEnginePhase.QUESTION;
+        this.#eliminatedChoiceIndexes = [];
+        this.#eliminationOrder = [];
         return this.getSnapshot();
     }
 
@@ -65,6 +71,47 @@ export class QuizEngine {
             currentItem &&
             currentItem.type !== "multipleChoice"
         ) {
+            this.#phase = QuizEnginePhase.ANSWER;
+        }
+
+        return this.getSnapshot();
+    }
+
+    startMultipleChoiceElimination(eliminationOrder = []) {
+        const currentItem = this.#items[this.#currentIndex];
+
+        if (
+            this.#phase === QuizEnginePhase.QUESTION &&
+            currentItem?.type === "multipleChoice"
+        ) {
+            this.#eliminationOrder = [...eliminationOrder];
+            this.#eliminatedChoiceIndexes = [];
+            this.#phase = this.#eliminationOrder.length > 0
+                ? QuizEnginePhase.ELIMINATING
+                : QuizEnginePhase.ANSWER;
+        }
+
+        return this.getSnapshot();
+    }
+
+    eliminateNextChoice() {
+        if (this.#phase !== QuizEnginePhase.ELIMINATING) {
+            return this.getSnapshot();
+        }
+
+        const nextIndex = this.#eliminationOrder[this.#eliminatedChoiceIndexes.length];
+
+        if (nextIndex === undefined) {
+            this.#phase = QuizEnginePhase.ANSWER;
+            return this.getSnapshot();
+        }
+
+        this.#eliminatedChoiceIndexes = [
+            ...this.#eliminatedChoiceIndexes,
+            nextIndex
+        ];
+
+        if (this.#eliminatedChoiceIndexes.length >= this.#eliminationOrder.length) {
             this.#phase = QuizEnginePhase.ANSWER;
         }
 

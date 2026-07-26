@@ -300,8 +300,18 @@ Module.register("MMM-NanoQuiz", {
         if (this.phase === "question") {
             this.timer = setTimeout(() => {
                 if (this.currentItem.type === "multipleChoice") {
-                    this.phase = "eliminating";
-                    this.eliminateNextChoice();
+                    const snapshot = this.engine.startMultipleChoiceElimination(
+                        this.eliminationOrder
+                    );
+                    this.phase = snapshot.phase;
+                    this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
+
+                    if (this.phase === "eliminating") {
+                        this.eliminateNextChoice();
+                    } else {
+                        this.updateDom(this.config.animationSpeed);
+                        this.scheduleCurrentPhase();
+                    }
                 } else {
                     this.phase = this.engine.revealAnswer().phase;
                     this.updateDom(this.config.animationSpeed);
@@ -319,25 +329,11 @@ Module.register("MMM-NanoQuiz", {
     },
 
     eliminateNextChoice() {
-        const nextIndex = this.eliminationOrder[this.eliminatedIndexes.size];
-
-        if (nextIndex === undefined) {
-            this.phase = "answer";
-            this.updateDom(this.config.animationSpeed);
-            this.scheduleCurrentPhase();
-            return;
-        }
-
-        this.eliminatedIndexes.add(nextIndex);
+        const snapshot = this.engine.eliminateNextChoice();
+        this.phase = snapshot.phase;
+        this.eliminatedIndexes = new Set(snapshot.eliminatedChoiceIndexes);
         this.updateDom(this.config.animationSpeed);
-
-        if (this.eliminatedIndexes.size >= this.eliminationOrder.length) {
-            this.phase = "answer";
-            this.updateDom(this.config.animationSpeed);
-            this.scheduleCurrentPhase();
-        } else {
-            this.scheduleCurrentPhase();
-        }
+        this.scheduleCurrentPhase();
     },
 
     clearTimer() {

@@ -250,3 +250,105 @@ test("MagicMirror module reveals one-answer items through the quiz engine", asyn
     assert.equal(updated, true);
     assert.equal(scheduledAnswerPhase, true);
 });
+
+test("MagicMirror module starts multiple-choice elimination through the quiz engine", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+    const eliminationOrder = [0, 1, 3];
+    let receivedEliminationOrder = null;
+    let updated = false;
+    let timerCalls = 0;
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: moduleDefinition.defaults,
+        currentItem: {
+            question: "Pick a letter",
+            answer: "C",
+            type: "multipleChoice",
+            choices: ["A", "B", "C", "D"]
+        },
+        eliminatedIndexes: new Set(),
+        eliminationOrder,
+        phase: "question",
+        timer: null,
+        engine: {
+            startMultipleChoiceElimination(order) {
+                receivedEliminationOrder = order;
+                return {
+                    phase: "eliminating",
+                    eliminatedChoiceIndexes: []
+                };
+            },
+            eliminateNextChoice() {
+                return {
+                    phase: "eliminating",
+                    eliminatedChoiceIndexes: [0]
+                };
+            }
+        },
+        updateDom() {
+            updated = true;
+        }
+    };
+
+    globalThis.setTimeout = (callback) => {
+        timerCalls += 1;
+        if (timerCalls === 1) {
+            callback();
+        }
+        return 1;
+    };
+    globalThis.clearTimeout = () => {};
+
+    try {
+        moduleInstance.scheduleCurrentPhase();
+    } finally {
+        globalThis.setTimeout = originalSetTimeout;
+        globalThis.clearTimeout = originalClearTimeout;
+    }
+
+    assert.equal(receivedEliminationOrder, eliminationOrder);
+    assert.deepEqual([...moduleInstance.eliminatedIndexes], [0]);
+    assert.equal(moduleInstance.phase, "eliminating");
+    assert.equal(updated, true);
+});
+
+test("MagicMirror module advances multiple-choice elimination through the quiz engine", async () => {
+    const moduleDefinition = await loadModuleDefinition();
+    let scheduled = false;
+    let updated = false;
+    const moduleInstance = {
+        ...moduleDefinition,
+        config: moduleDefinition.defaults,
+        currentItem: {
+            question: "Pick a letter",
+            answer: "C",
+            type: "multipleChoice",
+            choices: ["A", "B", "C", "D"]
+        },
+        eliminatedIndexes: new Set([0]),
+        phase: "eliminating",
+        engine: {
+            eliminateNextChoice() {
+                return {
+                    phase: "answer",
+                    eliminatedChoiceIndexes: [0, 1, 3]
+                };
+            }
+        },
+        scheduleCurrentPhase() {
+            scheduled = true;
+        },
+        updateDom() {
+            updated = true;
+        }
+    };
+
+    moduleInstance.eliminateNextChoice();
+
+    assert.equal(moduleInstance.phase, "answer");
+    assert.deepEqual([...moduleInstance.eliminatedIndexes], [0, 1, 3]);
+    assert.equal(updated, true);
+    assert.equal(scheduled, true);
+});
