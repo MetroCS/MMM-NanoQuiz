@@ -87,6 +87,13 @@ Source contract:
 
 - `QuizSource`
 
+The source contract is intentionally small:
+
+- `id`: identifies the origin for diagnostics, logs, and adapter messages
+- `loadRawItems()`: asynchronously returns raw quiz definitions
+
+Sources return raw data, not `QuizItem` instances. They do not validate, normalize, sequence, randomize, or render quiz content. Validation remains the responsibility of `QuizValidator`, which receives raw definitions from a source and decides what can become domain model objects.
+
 Initial implementations may include:
 
 - `MemorySource`
@@ -94,6 +101,16 @@ Initial implementations may include:
 - `RemoteJsonSource`
 
 A source returns data to the validation pipeline. It does not construct presentation state or render output.
+
+The first source abstraction increment establishes an asynchronous source contract and a `MemorySource` for already-available raw quiz definitions. `MemorySource` is useful for tests, previews, and adapter seams because it exercises the source contract without introducing filesystem or network behavior.
+
+`MemorySource` defensively copies raw definitions when constructed and when loaded. This protects caller-owned data and prevents consumers from mutating the source's stored raw definitions between loads. It still preserves invalid or unnormalized content exactly as source data so that validation behavior remains observable in the validation layer.
+
+The second source abstraction increment introduces `LocalJsonSource`. It reads JSON text from a supplied reader function, parses it, and returns raw definitions. The reader function owns environment-specific file access, keeping filesystem APIs outside the core source contract and making source behavior testable without touching the filesystem.
+
+The third source abstraction increment introduces `RemoteJsonSource`. It requests JSON text from a supplied requester function, parses it, and returns raw definitions. The requester owns environment-specific network behavior, keeping browser or Node network APIs outside the core source contract and making remote source behavior testable without live network access.
+
+The MagicMirror adapter boundary uses the source abstraction for configured quiz loading. When `dataUrl` is present, the adapter bridge creates a `RemoteJsonSource`; otherwise it resolves `dataFile` through the MagicMirror module and creates a `LocalJsonSource`. If both `dataUrl` and `dataFile` are configured, `dataUrl` takes precedence and the adapter emits a warning. Both sources receive a MagicMirror-provided text requester, keeping browser `fetch`, helper-mediated remote requests, and MagicMirror path resolution outside the reusable source implementations.
 
 ### Quiz Engine
 
@@ -145,7 +162,7 @@ The MagicMirror adapter is responsible for:
 
 The adapter must not own quiz validation, sequencing rules, or presentation strategy behavior.
 
-The adapter delegates raw quiz validation to the framework validation layer and translates diagnostics into host logging. It still owns source loading, lifecycle behavior, timers, and DOM rendering. Because MagicMirror loads the module entrypoint through its classic browser runtime, a small `.mjs` bridge imports the source adapter and exposes the validation entrypoint to the MagicMirror module.
+The adapter delegates configured quiz loading and raw quiz validation through the framework adapter bridge, then translates diagnostics into host logging. It still owns MagicMirror path resolution, text requests, lifecycle behavior, timers, and DOM rendering. Local module files are requested by the browser. Remote URLs are requested through `node_helper.js` so browser CORS policy does not prevent MagicMirror from loading quiz content from servers that do not explicitly allow `localhost`. Because MagicMirror loads the module entrypoint through its classic browser runtime, a small `.mjs` bridge imports adapter-facing source modules and exposes narrow entrypoints to the MagicMirror module.
 
 Additional adapters may support standalone browser previews, authoring tools, or other display environments.
 

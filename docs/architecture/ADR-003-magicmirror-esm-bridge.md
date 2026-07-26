@@ -15,7 +15,7 @@ MagicMirror-specific integration with framework ESM code will use small `.mjs` b
 
 The MagicMirror entrypoint remains a classic script compatible with `Module.register`. A bridge module imports the canonical source implementation and exposes a narrow browser global for the MagicMirror entrypoint to call.
 
-For validation, `src/adapter/MagicMirrorValidationAdapter.mjs` imports `validateNanoQuizItems` from `src/adapter/validateNanoQuizItems.js` and exposes `globalThis.NanoQuizAdapter`.
+For validation and configured source loading, `src/adapter/MagicMirrorAdapter.mjs` imports adapter-facing source modules such as `validateNanoQuizItems` and `loadNanoQuizItems`, then exposes them through `globalThis.NanoQuizAdapter`.
 
 The source implementation remains canonical. Bridge modules are adapters, not alternate implementations.
 

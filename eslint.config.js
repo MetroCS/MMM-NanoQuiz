@@ -14,7 +14,8 @@ export default [
                 clearTimeout: "readonly",
                 Log: "readonly",
                 Module: "readonly",
-                NanoQuizAdapter: "readonly"
+                NanoQuizAdapter: "readonly",
+                AbortController: "readonly"
             }
         },
         rules: {

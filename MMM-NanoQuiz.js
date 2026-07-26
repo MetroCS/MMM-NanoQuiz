@@ -5,6 +5,7 @@ Module.register("MMM-NanoQuiz", {
         dataFile: "questions.json",
         dataUrl: null,
         reloadInterval: 15 * 60 * 1000,
+        remoteRequestTimeout: 30000,
         randomizeQuestions: true,
         randomizeChoices: false,
         avoidImmediateRepeats: true,
@@ -31,7 +32,7 @@ Module.register("MMM-NanoQuiz", {
     },
 
     getScripts() {
-        return [this.file("src/adapter/MagicMirrorValidationAdapter.mjs")];
+        return [this.file("src/adapter/MagicMirrorAdapter.mjs")];
     },
 
     start() {
@@ -45,6 +46,8 @@ Module.register("MMM-NanoQuiz", {
         this.timer = null;
         this.reloadTimer = null;
         this.errorMessage = null;
+        this.nextRequestId = 1;
+        this.pendingTextRequests = new Map();
         this.loadItems();
     },
 
@@ -73,6 +76,31 @@ Module.register("MMM-NanoQuiz", {
         }
     },
 
+    socketNotificationReceived(notification, payload) {
+        if (
+            notification !== "NANOQUIZ_TEXT_RESPONSE" ||
+            !payload ||
+            typeof payload !== "object" ||
+            payload.requestId === undefined ||
+            payload.requestId === null
+        ) {
+            return;
+        }
+
+        const pendingRequest = this.pendingTextRequests.get(payload.requestId);
+        if (!pendingRequest) {
+            return;
+        }
+
+        this.pendingTextRequests.delete(payload.requestId);
+
+        if (payload.error) {
+            pendingRequest.reject(new Error(payload.error));
+        } else {
+            pendingRequest.resolve(payload.text);
+        }
+    },
+
     async loadItems() {
         this.clearTimer();
         this.phase = "loading";
@@ -80,14 +108,7 @@ Module.register("MMM-NanoQuiz", {
         this.updateDom(this.config.animationSpeed);
 
         try {
-            const source = this.config.dataUrl || this.file(this.config.dataFile);
-            const response = await fetch(source, { cache: "no-store" });
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status} while loading ${source}`);
-            }
-
-            const rawItems = await response.json();
-            const validItems = this.validateLoadedItems(rawItems, source);
+            const validItems = await this.loadConfiguredItems();
 
             if (validItems.length === 0) {
                 throw new Error("No valid NanoQuiz items were found.");
@@ -108,18 +129,77 @@ Module.register("MMM-NanoQuiz", {
         }
     },
 
-    validateLoadedItems(rawItems, source) {
+    async loadConfiguredItems() {
         if (
             typeof NanoQuizAdapter === "undefined" ||
-            typeof NanoQuizAdapter.validateNanoQuizItems !== "function"
+            typeof NanoQuizAdapter.loadNanoQuizItems !== "function"
         ) {
-            throw new Error("NanoQuiz validation adapter was not loaded.");
+            throw new Error("NanoQuiz adapter bridge was not loaded.");
         }
 
-        return NanoQuizAdapter.validateNanoQuizItems(rawItems, {
-            source,
+        return NanoQuizAdapter.loadNanoQuizItems({
+            config: this.config,
+            resolveFile: (file) => this.file(file),
+            requestText: (source) => this.requestText(source),
             logger: {
                 warn: (message) => Log.warn(`${this.name}: ${message}`)
+            }
+        });
+    },
+
+    async requestText(source) {
+        if (this.isRemoteSource(source)) {
+            return this.requestRemoteText(source);
+        }
+
+        const response = await fetch(source, { cache: "no-store" });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        return response.text();
+    },
+
+    isRemoteSource(source) {
+        return /^https?:\/\//u.test(source);
+    },
+
+    requestRemoteText(source) {
+        if (typeof this.sendSocketNotification !== "function") {
+            return Promise.reject(new Error("NanoQuiz helper is not available."));
+        }
+
+        const requestId = this.nextRequestId;
+        this.nextRequestId += 1;
+
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.pendingTextRequests.delete(requestId);
+                reject(new Error(`Timed out requesting ${source}`));
+            }, this.config.remoteRequestTimeout);
+
+            const pendingRequest = {
+                resolve(text) {
+                    clearTimeout(timeout);
+                    resolve(text);
+                },
+                reject(error) {
+                    clearTimeout(timeout);
+                    reject(error);
+                }
+            };
+
+            this.pendingTextRequests.set(requestId, pendingRequest);
+
+            try {
+                this.sendSocketNotification("NANOQUIZ_REQUEST_TEXT", {
+                    requestId,
+                    source,
+                    timeout: this.config.remoteRequestTimeout
+                });
+            } catch (error) {
+                this.pendingTextRequests.delete(requestId);
+                pendingRequest.reject(error);
             }
         });
     },

@@ -1,18 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-test("MagicMirror validation adapter exposes the validator bridge globally", async () => {
+test("MagicMirror adapter exposes the bridge globally", async () => {
     delete globalThis.NanoQuizAdapter;
 
-    await import("../src/adapter/MagicMirrorValidationAdapter.mjs");
+    await import("../src/adapter/MagicMirrorAdapter.mjs");
 
+    assert.equal(typeof globalThis.NanoQuizAdapter.loadNanoQuizItems, "function");
     assert.equal(typeof globalThis.NanoQuizAdapter.validateNanoQuizItems, "function");
 });
 
-test("MagicMirror validation adapter delegates to source validation", async () => {
+test("MagicMirror adapter delegates to source validation", async () => {
     const warnings = [];
 
-    await import("../src/adapter/MagicMirrorValidationAdapter.mjs");
+    await import("../src/adapter/MagicMirrorAdapter.mjs");
     const items = globalThis.NanoQuizAdapter.validateNanoQuizItems([
         {
             answer: "Paris"
