@@ -276,14 +276,16 @@ export class QuizEngine {
     }
 
     #normalizeTiming(timing) {
+        const normalized = timing ?? {};
+
         return {
             oneAnswer: {
                 ...DEFAULT_TIMING.oneAnswer,
-                ...timing.oneAnswer
+                ...(normalized.oneAnswer ?? {})
             },
             multipleChoice: {
                 ...DEFAULT_TIMING.multipleChoice,
-                ...timing.multipleChoice
+                ...(normalized.multipleChoice ?? {})
             }
         };
     }

@@ -108,6 +108,10 @@ Module.register("MMM-NanoQuiz", {
         if (this.engine) {
             this.engine.pause();
         }
+        this.engine = null;
+        this.currentItem = null;
+        this.currentIndex = -1;
+        this.eliminatedIndexes = new Set();
         this.phase = "loading";
         this.errorMessage = null;
         this.updateDom(this.config.animationSpeed);
