@@ -53,6 +53,37 @@ test("with no config source, silently falls back to no overrides when the defaul
     assert.deepEqual(options, {});
 });
 
+test("with no config source, silently falls back to no overrides when the default file's modules is missing or not an array", async () => {
+    const options = await loadPreviewEngineOptions(undefined, {
+        defaultConfigPath: "/nonexistent/config.js",
+        fileExists: async () => true,
+        importConfigModule: async () => ({ default: { modules: "not an array" } })
+    });
+
+    assert.deepEqual(options, {});
+});
+
+test("tolerates null/non-object entries in modules without crashing", async () => {
+    const options = await loadPreviewEngineOptions(undefined, {
+        defaultConfigPath: "/nonexistent/config.js",
+        fileExists: async () => true,
+        importConfigModule: async () => ({
+            default: { modules: [null, undefined, "not an object", { module: "MMM-NanoQuiz", config: sampleConfig }] }
+        })
+    });
+
+    assert.deepEqual(options, sampleConfig);
+});
+
+test("an explicit config.js whose modules is missing or not an array raises the clear no-match error, not a crash", async () => {
+    await assert.rejects(
+        () => loadPreviewEngineOptions("config.js", {
+            importConfigModule: async () => ({ default: { modules: null } })
+        }),
+        /No "MMM-NanoQuiz" module entry found in config\.js/
+    );
+});
+
 test("with no config source, silently falls back to no overrides when the default file fails to import", async () => {
     const options = await loadPreviewEngineOptions(undefined, {
         defaultConfigPath: "/nonexistent/config.js",

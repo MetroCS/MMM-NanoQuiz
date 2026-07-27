@@ -15,7 +15,7 @@ test("runPreviewQuizCli reports usage and fails when no file is given", async ()
     });
 
     assert.equal(exitCode, 1);
-    assert.deepEqual(errorLines, ["Usage: preview-quiz <path-to-quiz-file.json> [path-to-config-source]"]);
+    assert.deepEqual(errorLines, ["Usage: npm run preview -- <path-to-quiz-file.json> [path-to-config-source]"]);
 });
 
 test("runPreviewQuizCli reports validation failures and exits non-zero", async () => {

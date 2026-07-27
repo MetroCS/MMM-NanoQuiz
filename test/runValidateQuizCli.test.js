@@ -14,7 +14,7 @@ test("runValidateQuizCli reports usage and fails when no file is given", async (
     });
 
     assert.equal(exitCode, 1);
-    assert.deepEqual(errorLines, ["Usage: validate-quiz <path-to-quiz-file.json>"]);
+    assert.deepEqual(errorLines, ["Usage: npm run validate -- <path-to-quiz-file.json>"]);
 });
 
 test("runValidateQuizCli reports validation failures and exits non-zero", async () => {

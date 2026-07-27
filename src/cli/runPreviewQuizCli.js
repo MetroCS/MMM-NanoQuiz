@@ -14,7 +14,7 @@ export async function runPreviewQuizCli(argv, {
     const filePath = argv[0];
 
     if (!filePath) {
-        writeErrorLine("Usage: preview-quiz <path-to-quiz-file.json> [path-to-config-source]");
+        writeErrorLine("Usage: npm run preview -- <path-to-quiz-file.json> [path-to-config-source]");
         return 1;
     }
 

@@ -95,7 +95,8 @@ async function readModuleConfigFromFile(path, moduleName, importConfigModule, wr
         return {};
     }
 
-    const matches = (magicMirrorConfig.modules ?? []).filter((entry) => entry.module === moduleName);
+    const modules = Array.isArray(magicMirrorConfig.modules) ? magicMirrorConfig.modules : [];
+    const matches = modules.filter((entry) => entry && entry.module === moduleName);
 
     if (matches.length === 0) {
         if (required) {

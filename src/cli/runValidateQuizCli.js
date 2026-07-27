@@ -9,7 +9,7 @@ export async function runValidateQuizCli(argv, {
     const filePath = argv[0];
 
     if (!filePath) {
-        writeErrorLine("Usage: validate-quiz <path-to-quiz-file.json>");
+        writeErrorLine("Usage: npm run validate -- <path-to-quiz-file.json>");
         return 1;
     }
 
