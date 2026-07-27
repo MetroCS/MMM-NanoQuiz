@@ -25,5 +25,14 @@ export default [
             "eqeqeq": ["error", "always"],
             "curly": ["error", "all"]
         }
+    },
+    {
+        files: ["bin/**/*.js"],
+        languageOptions: {
+            globals: {
+                process: "readonly",
+                console: "readonly"
+            }
+        }
     }
 ];

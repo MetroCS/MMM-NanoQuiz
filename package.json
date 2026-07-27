@@ -4,10 +4,14 @@
   "private": true,
   "type": "module",
   "description": "A MagicMirror module for brief question-and-answer presentations.",
+  "bin": {
+    "nanoquiz-validate": "bin/validate-quiz.js"
+  },
   "scripts": {
     "test": "node --test",
     "lint": "eslint .",
-    "check": "npm run lint && npm test"
+    "check": "npm run lint && npm test",
+    "validate": "node bin/validate-quiz.js"
   },
   "engines": {
     "node": ">=20"

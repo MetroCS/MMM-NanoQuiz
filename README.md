@@ -2,6 +2,8 @@
 
 A [MagicMirror²](https://docs.magicmirror.builders/) module that displays brief, rotating educational quiz questions — one-answer or multiple-choice — with automatic timing, sequencing, and answer reveal. It's built as an educational quiz framework with MagicMirror as its first adapter; see [`VISION.md`](VISION.md), [`ROADMAP.md`](ROADMAP.md), and [`docs/Architecture.md`](docs/Architecture.md) if you're interested in the design behind it or want to contribute.
 
+**Writing or editing quiz questions?** See the [Quiz Authoring Guide](docs/Quiz-Authoring-Guide.md) for the content format and how to validate a quiz file before deploying it.
+
 ## Features
 
 - One-answer and four-choice multiple-choice presentations, auto-detected from your quiz content.
@@ -44,37 +46,9 @@ git pull
 
 ## Quiz Content
 
-By default, the module reads `questions.json` from its own folder (`dataFile: "questions.json"`). Each entry is either a one-answer item:
+By default, the module reads `questions.json` from its own folder (`dataFile: "questions.json"`), or you can point at a remote JSON URL with the same content shape via `dataUrl` (see below).
 
-```json
-{
-    "question": "Why is an algorithm required to terminate?",
-    "answer": "Without termination, it does not produce a completed result.",
-    "category": "Algorithms",
-    "explanation": "Termination is one of the defining properties traditionally required of an algorithm."
-}
-```
-
-or a multiple-choice item, identified by the presence of `choices`:
-
-```json
-{
-    "question": "Which property ensures that an algorithm eventually stops?",
-    "answer": "Finiteness",
-    "choices": ["Finiteness", "Correctness", "Generality", "Efficiency"],
-    "category": "Algorithms",
-    "explanation": "Finiteness means that the algorithm completes after a finite number of steps."
-}
-```
-
-Rules:
-
-- `question` and `answer` are required, non-empty strings.
-- `category` and `explanation` are optional strings; if present but not a string, the field is dropped with a warning (the item is still shown).
-- `choices`, if present, must be exactly four non-empty strings, and `answer` must match exactly one of them.
-- Invalid items are skipped with a warning logged to the MagicMirror console; they don't prevent the rest of the collection from loading.
-
-Instead of a local file, you can point at a remote JSON URL with the same content shape via `dataUrl` (see below).
+For the full content format, field rules, and how to validate a quiz file before deploying it, see the [Quiz Authoring Guide](docs/Quiz-Authoring-Guide.md). In short, each entry is either a one-answer item (`question` + `answer`) or a multiple-choice item (`question` + `answer` + four `choices`); invalid items are skipped with a warning logged to the MagicMirror console, so a few bad entries don't take down the whole quiz.
 
 
 
@@ -177,6 +151,8 @@ npm run check  # both
 ```
 
 Note: `test/node_helper.test.js` requires MagicMirror's own `js/node_helper.js` and `js/alias-resolver`, so the full suite only passes when this module is checked out inside a real MagicMirror installation's `modules/` directory, not as a standalone clone.
+
+`npm run validate -- path/to/questions.json` is available here too, but it's documented for its actual audience — quiz content authors, who don't need to read this section — in the [Quiz Authoring Guide](docs/Quiz-Authoring-Guide.md).
 
 ## License
 

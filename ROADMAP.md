@@ -56,6 +56,8 @@ Provide validation feedback, examples, and a standalone preview path that help a
 
 **Result:** Quiz content can be authored and checked without requiring a running MagicMirror installation.
 
+**Current increment:** A CLI validator checks a quiz JSON file against the same `QuizValidator` the module uses at runtime, without any MagicMirror or browser dependency. `validateQuizFile(filePath)` reads and parses the file and returns a `ValidationResult`; `runValidateQuizCli(argv, { validate, writeLine, writeErrorLine })` is the testable core (usage message when no path is given, error reporting when reading/parsing/validating fails, one formatted diagnostic line per issue via the shared `formatDiagnostic`, a summary line, and a process exit code of `0` only when the result is valid); `bin/validate-quiz.js` is the thin executable entry point wired to real `process.argv`/`console`/`process.exitCode`, run via `npm run validate -- <path>` or the `nanoquiz-validate` bin. `formatDiagnostic` was extracted out of the adapter's `validateNanoQuizItems` into `src/validation/formatDiagnostic.js` so the CLI and the running module report diagnostics identically. This milestone remains scoped to the CLI validator; a standalone browser preview is deferred to Milestone 8 if pursued. `bin/validate-quiz.js`'s placement follows [ADR-004](docs/architecture/ADR-004-host-entry-points.md): entry points are named and located per their host platform's own convention, not a project-invented scheme.
+
 ## 8. Extended Sources and Renderers
 
 Add selected integrations, such as remote quiz sources or standalone browser rendering, where they demonstrate the value of the framework boundaries.

@@ -172,6 +172,24 @@ Implementations:
 
 Because this layer exists to keep host-specific rendering code out of `MMM-NanoQuiz.js`, strategies are expected to use DOM APIs (`document.createElement`, `classList`, `textContent`) directly — unlike the framework-core layers below, which must not depend on the DOM. Strategy tests use a minimal in-test fake `document` (an object exposing just `createElement`) so they run under Node without a browser.
 
+### Authoring Tools
+
+Authoring tools let quiz authors check content without a running MagicMirror installation. They reuse `QuizValidator` directly rather than duplicating validation policy.
+
+Primary responsibility:
+
+- report validation diagnostics for a quiz file outside any host environment
+
+Representative objects:
+
+- `validateQuizFile(filePath, { readTextFile, validator })`: reads and parses a quiz JSON file and returns a `ValidationResult`. File reading is injected (defaulting to `node:fs/promises`) so the function is testable without touching the filesystem.
+- `runValidateQuizCli(argv, { validate, writeLine, writeErrorLine })`: the testable CLI core. It reports a usage message and a non-zero exit code when no file path is given, reports the error message and a non-zero exit code when validation fails outright (unreadable file, invalid JSON), otherwise prints one formatted diagnostic per issue and a summary line, exiting `0` only when the result is valid.
+- `bin/validate-quiz.js`: a thin executable that wires `runValidateQuizCli` to real `process.argv`, `console`, and `process.exitCode`. Its location under `bin/` follows Node's own `package.json` `bin`-field convention rather than a project-specific scheme; see [ADR-004](architecture/ADR-004-host-entry-points.md) for why entry point placement follows each host's own convention.
+
+`formatDiagnostic` (in `src/validation/formatDiagnostic.js`) is a shared, dependency-free formatting function used by both the CLI and the MagicMirror adapter's `validateNanoQuizItems`, so a diagnostic reads identically whether it surfaced from a running module or from the CLI validator.
+
+Authoring tools depend on the validation layer only. They do not depend on the engine, adapters, or presentation strategies.
+
 ## Data Flow
 
 The normal flow is:
@@ -226,6 +244,10 @@ Implement the `QuizSource` contract to obtain raw quiz definitions from another 
 
 Implement the `PresentationStrategy` contract within an adapter to add DOM rendering for another interaction form, and register it with that adapter's strategy lookup (for example, `presentationStrategyFor` in the MagicMirror adapter), without changing unrelated strategies.
 
+### New Authoring Tools
+
+Build additional tooling (for example, batch validation of multiple files, or a standalone preview) on top of `QuizValidator` and the existing CLI functions without introducing a MagicMirror or browser dependency.
+
 ### New Rendering Environments
 
 Create an adapter that observes framework state and events and translates them into the host environment.
@@ -242,6 +264,7 @@ Tests focus on externally observable behavior.
 - Engine tests verify state transitions and emitted events.
 - Strategy tests verify interaction-specific DOM content, using a minimal fake `document` so they run without a browser.
 - Adapter tests verify translation between the host environment and framework behavior.
+- Authoring tool tests verify CLI behavior (usage, error handling, diagnostic output, exit codes) with injected file reading and output functions, without spawning a real process or touching the filesystem.
 
 Tests should not require MagicMirror or a browser unless the behavior under test belongs specifically to the MagicMirror adapter or DOM renderer.
 
@@ -253,7 +276,9 @@ Completed framework foundations include immutable quiz model values, structured 
 
 The presentation engine milestone described in [`ROADMAP.md`](../ROADMAP.md) is complete. The engine establishes renderer-independent item sequencing, immutable presentation snapshots, one-answer reveal progression, prepared multiple-choice choice order, answer-safe elimination order, multiple-choice elimination state, phase timing metadata, and autonomous timer-driven progression through `start()`, `pause()`, `resume()`, and `skipToNext()`. MagicMirror integration starts the engine and rerenders from the snapshots it reports; the adapter no longer schedules timers or drives phase transitions itself.
 
-The current development focus is the presentation strategies milestone. `PresentationStrategy` (`QuestionAnswerPresentation`, `MultipleChoicePresentation`) now factors the one piece of per-item-type DOM content out of `MMM-NanoQuiz.js`, selected through `presentationStrategyFor` on the adapter bridge. `getDom()` itself no longer branches on item type; note that `QuizEngine.js` still does, internally, for sequencing-level concerns (timing lookup, elimination order, choice preparation) — that internal engine branching was intentionally left as is, since Presentation Strategies were scoped specifically to the adapter's rendering responsibility, not to the engine's internal sequencing logic.
+The presentation strategies milestone is complete. `PresentationStrategy` (`QuestionAnswerPresentation`, `MultipleChoicePresentation`) factors the one piece of per-item-type DOM content out of `MMM-NanoQuiz.js`, selected through `presentationStrategyFor` on the adapter bridge. `getDom()` itself no longer branches on item type; note that `QuizEngine.js` still does, internally, for sequencing-level concerns (timing lookup, elimination order, choice preparation) — that internal engine branching was intentionally left as is, since Presentation Strategies were scoped specifically to the adapter's rendering responsibility, not to the engine's internal sequencing logic.
+
+The current development focus is the authoring and preview support milestone, scoped to a CLI validator. `validateQuizFile` and `runValidateQuizCli` reuse `QuizValidator` and the shared `formatDiagnostic` to check a quiz JSON file and report diagnostics with the same wording the running module would log, without requiring MagicMirror or a browser. `bin/validate-quiz.js` is the executable entry point, runnable via `npm run validate -- <path>` or the `nanoquiz-validate` bin. End-user-facing usage and diagnostic documentation lives in [`docs/Quiz-Authoring-Guide.md`](Quiz-Authoring-Guide.md), not here, since that audience is quiz content authors rather than contributors to this architecture document.
 
 ## Related Documents
 
@@ -262,3 +287,4 @@ The current development focus is the presentation strategies milestone. `Present
 - [`ADR-001: Project Identity`](architecture/ADR-001-project-identity.md)
 - [`ADR-002: Increment Development Model`](architecture/ADR-002-increment-development-model.md)
 - [`ADR-003: MagicMirror ESM Bridge`](architecture/ADR-003-magicmirror-esm-bridge.md)
+- [`ADR-004: Host Entry Points Stay Thin and Host-Conventional`](architecture/ADR-004-host-entry-points.md)
