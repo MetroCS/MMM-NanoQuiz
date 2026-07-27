@@ -27,7 +27,7 @@ export default [
         }
     },
     {
-        files: ["bin/**/*.js"],
+        files: ["bin/**/*.js", "src/cli/**/*.js"],
         languageOptions: {
             globals: {
                 process: "readonly",

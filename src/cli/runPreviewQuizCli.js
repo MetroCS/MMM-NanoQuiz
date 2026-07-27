@@ -1,18 +1,20 @@
 import { validateQuizFile } from "./validateQuizFile.js";
 import { formatDiagnostic } from "../validation/formatDiagnostic.js";
 import { createPreviewSnapshotFormatter } from "./createPreviewSnapshotFormatter.js";
+import { loadPreviewEngineOptions } from "./loadPreviewEngineOptions.js";
 import { QuizEngine } from "../engine/QuizEngine.js";
 
 export async function runPreviewQuizCli(argv, {
     validate = validateQuizFile,
-    createEngine = (items) => new QuizEngine(items),
+    loadEngineOptions = loadPreviewEngineOptions,
+    createEngine = (items, options) => new QuizEngine(items, options),
     writeLine = () => {},
     writeErrorLine = () => {}
 } = {}) {
     const filePath = argv[0];
 
     if (!filePath) {
-        writeErrorLine("Usage: preview-quiz <path-to-quiz-file.json>");
+        writeErrorLine("Usage: preview-quiz <path-to-quiz-file.json> [path-to-config-source]");
         return 1;
     }
 
@@ -34,7 +36,16 @@ export async function runPreviewQuizCli(argv, {
         return 1;
     }
 
-    const engine = createEngine(result.items);
+    let engineOptions;
+
+    try {
+        engineOptions = await loadEngineOptions(argv[1], { writeErrorLine });
+    } catch (error) {
+        writeErrorLine(error.message);
+        return 1;
+    }
+
+    const engine = createEngine(result.items, engineOptions);
     const formatSnapshot = createPreviewSnapshotFormatter();
 
     // The engine loops through the quiz autonomously and never completes on

@@ -120,13 +120,38 @@ If you run into a diagnostic message not listed here, the message text itself is
 
 ## Previewing your quiz file
 
-Validation catches malformed content, but it won't show you how a quiz actually plays out — the sequencing, timing, elimination, and answer reveal. `preview-quiz` runs a real quiz session in your terminal, using the same engine that drives the on-screen display, with the same default timing, so you can watch it before wiring anything up in MagicMirror:
+Validation catches malformed content, but it won't show you how a quiz actually plays out — the sequencing, timing, elimination, and answer reveal. `preview-quiz` runs a real quiz session in your terminal, using the same engine that drives the on-screen display, so you can watch it before wiring anything up in MagicMirror:
 
 ```sh
 npm run preview -- path/to/questions.json
 ```
 
 Like `validate-quiz`, this fails immediately (with the same diagnostics format) if the file can't be read or parsed, or if no items in it are valid. Otherwise it starts playing the quiz and keeps going, item after item, exactly as it would on screen — including randomized order by default — until you stop it with Ctrl+C. It doesn't exit on its own; that's expected, since a running quiz doesn't either.
+
+### Matching your real timing and randomization settings
+
+By default, `preview-quiz` looks for your `config/config.js` two directories up (the standard `MagicMirror/modules/MMM-NanoQuiz/` install layout) and, if found, uses that module entry's `timing`, `randomizeQuestions`, `randomizeChoices`, and `avoidImmediateRepeats` settings — the same ones MagicMirror would actually use — instead of the module's defaults. If `config.js` isn't where it's expected, the preview just falls back to defaults silently; nothing breaks.
+
+You can also point it at a config source explicitly, as a second argument:
+
+```sh
+npm run preview -- path/to/questions.json path/to/config.js
+npm run preview -- path/to/questions.json timing.json
+```
+
+A `.js` path is treated as a real `config.js`: it's searched for the `MMM-NanoQuiz` module entry, and that entry's `config` is used. A `.json` path is treated as just the config values themselves — a small file with the same shape as the `config: { ... }` value in `config.js`, without the surrounding `module`/`position` wrapper, for example:
+
+```json
+{
+    "timing": {
+        "oneAnswer": { "questionDuration": 10000, "answerDuration": 10000 },
+        "multipleChoice": { "questionDuration": 9000, "eliminationInterval": 3000, "answerDuration": 10000 }
+    },
+    "randomizeChoices": true
+}
+```
+
+Unlike the silent fallback for the default location, an explicitly given path that can't be read, parsed, or matched to a `MMM-NanoQuiz` entry is a real error (exit code 1) — you asked for it specifically, so a typo shouldn't fail quietly.
 
 A two-item file (one of each type) looks like this:
 

@@ -15,7 +15,7 @@ test("runPreviewQuizCli reports usage and fails when no file is given", async ()
     });
 
     assert.equal(exitCode, 1);
-    assert.deepEqual(errorLines, ["Usage: preview-quiz <path-to-quiz-file.json>"]);
+    assert.deepEqual(errorLines, ["Usage: preview-quiz <path-to-quiz-file.json> [path-to-config-source]"]);
 });
 
 test("runPreviewQuizCli reports validation failures and exits non-zero", async () => {
@@ -109,11 +109,14 @@ test("runPreviewQuizCli prints diagnostics, then starts the engine and prints ea
     ];
 
     let startedWithItems = null;
+    let startedWithOptions = null;
 
     const exitCode = await runPreviewQuizCli(["questions.json"], {
         validate: async () => result,
-        createEngine: (items) => {
+        loadEngineOptions: async () => ({}),
+        createEngine: (items, options) => {
             startedWithItems = items;
+            startedWithOptions = options;
             return {
                 start: ({ onChange }) => {
                     snapshots.forEach((snapshot) => onChange(snapshot));
@@ -125,9 +128,58 @@ test("runPreviewQuizCli prints diagnostics, then starts the engine and prints ea
 
     assert.equal(exitCode, 0);
     assert.deepEqual(startedWithItems, [item]);
+    assert.deepEqual(startedWithOptions, {});
     assert.deepEqual(lines, [
         "[warning] questions.json, item 2, category: Quiz item category must be a string when present.",
         "[1/1] Question: Capital of France?",
         "[1/1] Answer: Paris"
     ]);
+});
+
+test("runPreviewQuizCli loads engine options using the optional config-source argument", async () => {
+    const item = new QuizItem({ type: "oneAnswer", question: "Capital of France?", answer: "Paris" });
+    const result = new ValidationResult({ items: [item], diagnostics: [] });
+    const engineOptions = { randomizeChoices: true };
+
+    let requestedConfigSource = null;
+    let startedWithOptions = null;
+
+    const exitCode = await runPreviewQuizCli(["questions.json", "config.js"], {
+        validate: async () => result,
+        loadEngineOptions: async (configSourcePath) => {
+            requestedConfigSource = configSourcePath;
+            return engineOptions;
+        },
+        createEngine: (items, options) => {
+            startedWithOptions = options;
+            return { start: () => {} };
+        }
+    });
+
+    assert.equal(exitCode, 0);
+    assert.equal(requestedConfigSource, "config.js");
+    assert.deepEqual(startedWithOptions, engineOptions);
+});
+
+test("runPreviewQuizCli reports a config-source failure and exits non-zero without starting the engine", async () => {
+    const item = new QuizItem({ type: "oneAnswer", question: "Capital of France?", answer: "Paris" });
+    const result = new ValidationResult({ items: [item], diagnostics: [] });
+    const errorLines = [];
+    let engineCreated = false;
+
+    const exitCode = await runPreviewQuizCli(["questions.json", "config.js"], {
+        validate: async () => result,
+        loadEngineOptions: async () => {
+            throw new Error('No "MMM-NanoQuiz" module entry found in config.js.');
+        },
+        createEngine: () => {
+            engineCreated = true;
+            return { start: () => {} };
+        },
+        writeErrorLine: (line) => errorLines.push(line)
+    });
+
+    assert.equal(exitCode, 1);
+    assert.equal(engineCreated, false);
+    assert.deepEqual(errorLines, ['No "MMM-NanoQuiz" module entry found in config.js.']);
 });
