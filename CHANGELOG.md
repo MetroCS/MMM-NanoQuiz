@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): a contributor guide covering issue reporting, the ADR-002 development process, setup, coding conventions, branch/PR conventions, and how to classify a change's version impact under ADR-005.
+
 ## [1.0.0] - 2026-07-27
 
 ### Added
