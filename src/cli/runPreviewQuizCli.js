@@ -1,0 +1,63 @@
+import { validateQuizFile } from "./validateQuizFile.js";
+import { formatDiagnostic } from "../validation/formatDiagnostic.js";
+import { createPreviewSnapshotFormatter } from "./createPreviewSnapshotFormatter.js";
+import { loadPreviewEngineOptions } from "./loadPreviewEngineOptions.js";
+import { QuizEngine } from "../engine/QuizEngine.js";
+
+export async function runPreviewQuizCli(argv, {
+    validate = validateQuizFile,
+    loadEngineOptions = loadPreviewEngineOptions,
+    createEngine = (items, options) => new QuizEngine(items, options),
+    writeLine = () => {},
+    writeErrorLine = () => {}
+} = {}) {
+    const filePath = argv[0];
+
+    if (!filePath) {
+        writeErrorLine("Usage: npm run preview -- <path-to-quiz-file.json> [path-to-config-source]");
+        return 1;
+    }
+
+    let result;
+
+    try {
+        result = await validate(filePath);
+    } catch (error) {
+        writeErrorLine(error.message);
+        return 1;
+    }
+
+    result.diagnostics.forEach((diagnostic) => {
+        writeLine(formatDiagnostic(diagnostic));
+    });
+
+    if (result.items.length === 0) {
+        writeErrorLine("Cannot preview: no valid quiz items.");
+        return 1;
+    }
+
+    let engineOptions;
+
+    try {
+        engineOptions = await loadEngineOptions(argv[1], { writeErrorLine });
+    } catch (error) {
+        writeErrorLine(error.message);
+        return 1;
+    }
+
+    const engine = createEngine(result.items, engineOptions);
+    const formatSnapshot = createPreviewSnapshotFormatter();
+
+    // The engine loops through the quiz autonomously and never completes on
+    // its own, the same way it would when driving MagicMirror's on-screen
+    // display. This function returns once the preview has started; the
+    // process stays alive on the engine's own pending timers until the user
+    // interrupts it (e.g. Ctrl+C).
+    engine.start({
+        onChange: (snapshot) => {
+            formatSnapshot(snapshot).forEach(writeLine);
+        }
+    });
+
+    return 0;
+}
