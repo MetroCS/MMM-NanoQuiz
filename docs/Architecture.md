@@ -285,11 +285,15 @@ The presentation strategies milestone is complete. `PresentationStrategy` (`Ques
 
 The authoring and preview support milestone, scoped to CLI-only tooling, is complete. `validateQuizFile` and `runValidateQuizCli` reuse `QuizValidator` and the shared `formatDiagnostic` to check a quiz JSON file and report diagnostics with the same wording the running module would log, without requiring MagicMirror or a browser (`bin/validate-quiz.js`, `npm run validate -- <path>` / `nanoquiz-validate`). `runPreviewQuizCli` reuses the same validation and then drives a real `QuizEngine`, rendering its autonomous snapshot stream to the terminal through the stateful `createPreviewSnapshotFormatter()` so an author can watch a quiz's real sequencing and timing without MagicMirror (`bin/preview-quiz.js`, `npm run preview -- <path>` / `nanoquiz-preview`). `loadPreviewEngineOptions` lets that preview match an author's real configured `timing`/`randomizeQuestions`/`randomizeChoices`/`avoidImmediateRepeats`, extracted from either an explicit source (a `.json` config snippet or a real `config.js`) or, by default, the standard install layout's own `config.js`, falling back to the engine's defaults only when nothing is found and nothing was explicitly requested. A standalone browser preview remains deferred to Milestone 8, as noted in [`ROADMAP.md`](../ROADMAP.md). End-user-facing usage and diagnostic documentation for both tools lives in [`docs/Quiz-Authoring-Guide.md`](Quiz-Authoring-Guide.md), not here, since that audience is quiz content authors rather than contributors to this architecture document.
 
+The stable framework release milestone's versioning increment is complete: the project adopts Semantic Versioning and ships `1.0.0`, per [ADR-005](architecture/ADR-005-versioning-and-compatibility.md), which defines concretely what counts as a breaking, additive, or internal change across this project's config, notification, CSS, quiz-content, CLI, and framework-contract surfaces. [`CHANGELOG.md`](../CHANGELOG.md) records releases going forward. Milestone 8 (Extended Sources and Renderers) was deferred to prioritize this release; it remains the next planned milestone.
+
 ## Related Documents
 
 - [`VISION.md`](../VISION.md): project purpose and guiding principles
 - [`ROADMAP.md`](../ROADMAP.md): major capability milestones
+- [`CHANGELOG.md`](../CHANGELOG.md): released versions and their changes
 - [`ADR-001: Project Identity`](architecture/ADR-001-project-identity.md)
 - [`ADR-002: Increment Development Model`](architecture/ADR-002-increment-development-model.md)
 - [`ADR-003: MagicMirror ESM Bridge`](architecture/ADR-003-magicmirror-esm-bridge.md)
 - [`ADR-004: Host Entry Points Stay Thin and Host-Conventional`](architecture/ADR-004-host-entry-points.md)
+- [`ADR-005: Semantic Versioning and Compatibility Policy`](architecture/ADR-005-versioning-and-compatibility.md)

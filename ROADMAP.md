@@ -68,11 +68,15 @@ Add selected integrations, such as remote quiz sources or standalone browser ren
 
 **Result:** At least one additional source or rendering environment reuses the existing core without architectural restructuring.
 
+**Status:** Deferred to a future release. After Milestone 7, Milestone 9 was prioritized first so a stable, versioned release could ship with the currently completed feature set, per the ordering note above ("directional rather than calendar-based"). Milestone 8 remains the next planned milestone after this release.
+
 ## 9. Stable Framework Release
 
 Review the public model, configuration, extension points, documentation, and compatibility expectations for a stable release.
 
 **Result:** The project offers a coherent supported surface, clear upgrade expectations, and a verified release suitable for broader reuse.
+
+**Current increment:** The project adopts Semantic Versioning and ships `1.0.0`. [ADR-005](docs/architecture/ADR-005-versioning-and-compatibility.md) defines, concretely for this project, what counts as a breaking (major), additive (minor), or internal (patch) change across `config.js` options, MagicMirror notifications, documented CSS hooks, the quiz JSON content schema, CLI commands/flags/exit codes, and the framework contracts other adapters depend on (`QuizItem`, `QuizValidator`/`ValidationResult`/`Diagnostic`, `QuizSource`, `QuizEngine`, `PresentationStrategy`). [`CHANGELOG.md`](CHANGELOG.md) records releases in Keep a Changelog format, covering `0.1.0` and this `1.0.0` release. This increment covers versioning and release process only; the broader public-API/config audit and a formal contribution/compatibility-policy document remain open for a future increment of this milestone.
 
 ## Roadmap Maintenance
 
