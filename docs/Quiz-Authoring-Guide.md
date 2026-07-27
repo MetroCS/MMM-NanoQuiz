@@ -33,6 +33,28 @@ or a multiple-choice item, identified by the presence of `choices`:
 }
 ```
 
+### Full file example
+
+The file itself is a JSON array, so items are separated by commas and the whole thing is wrapped in `[` and `]`. A minimal `questions.json` with one of each type looks like this:
+
+```json
+[
+    {
+        "question": "Why is an algorithm required to terminate?",
+        "answer": "Without termination, it does not produce a completed result.",
+        "category": "Algorithms",
+        "explanation": "Termination is one of the defining properties traditionally required of an algorithm."
+    },
+    {
+        "question": "Which property ensures that an algorithm eventually stops?",
+        "answer": "Finiteness",
+        "choices": ["Finiteness", "Correctness", "Generality", "Efficiency"],
+        "category": "Algorithms",
+        "explanation": "Finiteness means that the algorithm completes after a finite number of steps."
+    }
+]
+```
+
 ### Field rules
 
 | Field | Required? | Rules |
