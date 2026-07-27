@@ -60,4 +60,5 @@ Reasonable for a project still finding its shape, but this project has completed
 - [ADR-002: Increment Development Model](ADR-002-increment-development-model.md)
 - [`docs/Architecture.md`](../Architecture.md) — Extension Points section, which this ADR's framework-contract criteria refer to
 - [`CHANGELOG.md`](../../CHANGELOG.md)
+- [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — operationalizes this policy for contributors
 - [`ROADMAP.md`](../../ROADMAP.md) — Milestone 9

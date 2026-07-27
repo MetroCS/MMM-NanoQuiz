@@ -1,6 +1,6 @@
 # MMM-NanoQuiz
 
-A [MagicMirror²](https://docs.magicmirror.builders/) module that displays brief, rotating educational quiz questions — one-answer or multiple-choice — with automatic timing, sequencing, and answer reveal. It's built as an educational quiz framework with MagicMirror as its first adapter; see [`VISION.md`](VISION.md), [`ROADMAP.md`](ROADMAP.md), and [`docs/Architecture.md`](docs/Architecture.md) if you're interested in the design behind it or want to contribute. See [`CHANGELOG.md`](CHANGELOG.md) for what's changed release to release.
+A [MagicMirror²](https://docs.magicmirror.builders/) module that displays brief, rotating educational quiz questions — one-answer or multiple-choice — with automatic timing, sequencing, and answer reveal. It's built as an educational quiz framework with MagicMirror as its first adapter; see [`VISION.md`](VISION.md), [`ROADMAP.md`](ROADMAP.md), and [`docs/Architecture.md`](docs/Architecture.md) if you're interested in the design behind it, or [`CONTRIBUTING.md`](CONTRIBUTING.md) if you want to contribute. See [`CHANGELOG.md`](CHANGELOG.md) for what's changed release to release.
 
 **Writing or editing quiz questions?** See the [Quiz Authoring Guide](docs/Quiz-Authoring-Guide.md) for the content format, how to validate a quiz file, and how to preview one playing out in your terminal, all before deploying it.
 
