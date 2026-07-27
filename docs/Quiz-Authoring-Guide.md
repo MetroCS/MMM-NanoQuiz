@@ -118,9 +118,34 @@ npm run validate -- questions.json || echo "quiz file has errors"
 
 If you run into a diagnostic message not listed here, the message text itself is the authoritative description — this table covers the common cases, not every possibility.
 
-### At runtime vs. before deploying
+## Previewing your quiz file
 
-Invalid items don't crash the module: MagicMirror logs the same diagnostic messages to its console and simply skips the bad items, showing everything else. Running `npm run validate` beforehand just lets you catch and fix problems on your own schedule, instead of noticing later that a question silently never shows up.
+Validation catches malformed content, but it won't show you how a quiz actually plays out — the sequencing, timing, elimination, and answer reveal. `preview-quiz` runs a real quiz session in your terminal, using the same engine that drives the on-screen display, with the same default timing, so you can watch it before wiring anything up in MagicMirror:
+
+```sh
+npm run preview -- path/to/questions.json
+```
+
+Like `validate-quiz`, this fails immediately (with the same diagnostics format) if the file can't be read or parsed, or if no items in it are valid. Otherwise it starts playing the quiz and keeps going, item after item, exactly as it would on screen — including randomized order by default — until you stop it with Ctrl+C. It doesn't exit on its own; that's expected, since a running quiz doesn't either.
+
+A two-item file (one of each type) looks like this:
+
+```text
+[2/2] Algorithms — Question: Which property ensures that an algorithm eventually stops?
+      Choices: Finiteness, Correctness, Generality, Efficiency
+[2/2] Eliminated: Generality
+[2/2] Eliminated: Correctness
+[2/2] Eliminated: Efficiency
+[2/2] Algorithms — Answer: Finiteness
+      Finiteness means that the algorithm completes after a finite number of steps.
+[1/2] Algorithms — Question: Why is an algorithm required to terminate?
+```
+
+Each line appears at the moment it would on screen: the question first, then (for a multiple-choice item) one "Eliminated" line per choice as it's ruled out, then the answer and its explanation, before moving on to the next item. `[2/2]` is a position counter (item 2 of 2 total), not the order they'll always play in — with randomization on by default, the first item shown can be any of them, and won't necessarily match their order in the file.
+
+## At runtime vs. before deploying
+
+Invalid items don't crash the module: MagicMirror logs the same diagnostic messages to its console and simply skips the bad items, showing everything else. Running `npm run validate` and `npm run preview` beforehand just lets you catch problems and see the pacing on your own schedule, instead of noticing later that a question silently never shows up, or that the timing feels off once it's already on the mirror.
 
 ## Related
 

@@ -5,13 +5,15 @@
   "type": "module",
   "description": "A MagicMirror module for brief question-and-answer presentations.",
   "bin": {
-    "nanoquiz-validate": "bin/validate-quiz.js"
+    "nanoquiz-validate": "bin/validate-quiz.js",
+    "nanoquiz-preview": "bin/preview-quiz.js"
   },
   "scripts": {
     "test": "node --test",
     "lint": "eslint .",
     "check": "npm run lint && npm test",
-    "validate": "node bin/validate-quiz.js"
+    "validate": "node bin/validate-quiz.js",
+    "preview": "node bin/preview-quiz.js"
   },
   "engines": {
     "node": ">=20"
