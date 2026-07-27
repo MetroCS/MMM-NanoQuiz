@@ -61,4 +61,3 @@ This could produce extensive documentation based on assumptions that have not ye
 
 - [`VISION.md`](../../VISION.md)
 - [ADR-001: Project Identity](ADR-001-project-identity.md)
-- [Development Notebook](../notebook/README.md)
