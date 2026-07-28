@@ -18,3 +18,5 @@ Follow the Document Intent -> Test Red -> Code Green cycle.
 2. **Write Failing Tests**: Write test cases first. Verify failure via `npm run check`.
 3. **Write Code**: Implement minimal JavaScript/CSS to make tests pass.
 4. **Verify Green**: Run `npm run check` to ensure zero test or linter failures.
+
+@/Users/jody/MagicMirror/modules/MMM-NanoQuiz/RTK.md
